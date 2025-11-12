@@ -1,41 +1,177 @@
-<<<<<<< HEAD
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LinguaLab - Sistema Web para Docentes y Administradores
 
-## Getting Started
+## 📋 Descripción
+Plataforma web con **Next.js + TypeScript** para gestionar docentes, administradores y alumnos. Incluye autenticación JWT con refresh tokens.
 
-First, run the development server:
+## 🏗️ Estructura MVC
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+lingualabweb/
+├── models/
+│   └── User.ts              # Consultas de usuarios
+├── controllers/
+│   └── authController.ts    # Lógica de autenticación
+├── lib/
+│   ├── db.ts               # Conexión MySQL
+│   ├── hash.ts             # Encriptación scrypt
+│   ├── jwt.ts              # Tokens JWT
+│   ├── auth.ts             # Middleware
+│   └── withAuth.tsx        # HOC de protección
+└── app/
+    ├── login/              # Página login
+    └── dashboard/
+        ├── docente/
+        └── admin/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🗂️ Carpeta Test
+```
+test/
+├── admin/                  # Interfaz prueba admin
+│   ├── lib/               # Scripts BD y hash
+│   └── pages/             # UI registro
+└── docente/               # Interfaz prueba docente
+    ├── lib/               # Scripts BD y hash
+    └── pages/             # UI registro
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Comandos
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Instalar
+```bash
+npm install
+```
 
-## Learn More
+### Desarrollo
+```bash
+npm run dev
+```
+Abre http://localhost:3000 (redirige a `/login`)
 
-To learn more about Next.js, take a look at the following resources:
+### Producción
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔐 Autenticación
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Rol | Usuario | Contraseña |
+|-----|---------|-----------|
+| Docente | Matrícula | Contraseña |
+| Admin | Correo | Contraseña |
 
-## Deploy on Vercel
+### Tokens
+- **Access Token**: 15 min (localStorage)
+- **Refresh Token**: 1 día (httpOnly cookie)
+- Se renueva automáticamente cada 13 min
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📡 API Endpoints
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-=======
-# LinguaLabWEB
-repositorio exlusivo para la plataforma web enfocada a los docentes y administradores
->>>>>>> a5caed54a56cab373139f1761bfbe81a08e18fa9
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/auth/login` | Iniciar sesión |
+| POST | `/api/auth/refresh` | Renovar token |
+| POST | `/api/auth/logout` | Cerrar sesión |
+| GET | `/api/auth/me` | Datos usuario |
+
+## ⚙️ Variables de Entorno (`.env.local`)
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=
+DB_PASSWORD=
+DB_NAME=lingualab2
+JWT_SECRET=secreto_super_seguro
+JWT_REFRESH_SECRET=refresh_secreto_seguro
+```
+
+## 📝 Interfaces Principales
+
+### UsuarioLogin
+```typescript
+{
+  id_usuario: number
+  nombre: string
+  rol: 'administrador' | 'docente'
+}
+```
+
+### UsuarioDocente
+```typescript
+{
+  id_usuario: number
+  nombre: string
+  rol: 'docente'
+  matricula: string
+}
+```
+
+### UsuarioAdmin
+```typescript
+{
+  id_usuario: number
+  nombre: string
+  rol: 'administrador'
+  permisos?: any
+}
+```
+
+### TokenPayload
+```typescript
+{
+  id_usuario: number
+  rol: 'administrador' | 'docente'
+  nombre: string
+  exp: number
+  type?: 'access' | 'refresh'
+}
+```
+
+### LoginResponse
+```typescript
+{
+  success: boolean
+  message: string
+  accessToken?: string
+  refreshToken?: string
+  user?: {
+    id_usuario: number
+    nombre: string
+    rol: string
+    matricula?: string
+  }
+}
+```
+
+## 🔒 Características Seguridad
+
+- ✅ Contraseñas encriptadas (crypto.scrypt)
+- ✅ JWT con firma HMAC-SHA256
+- ✅ Refresh tokens en httpOnly cookies
+- ✅ Protección por rol
+- ✅ Renovación automática transparente
+
+## 📱 Dashboards
+
+- **Docente**: Panel azul con información de matrícula
+- **Admin**: Panel verde con información administrativo
+- Botón cierre sesión en ambos
+
+## 🛠️ Stack
+
+- **Frontend**: React 19 + Next.js 16 + TypeScript
+- **Backend**: Next.js API Routes
+- **BD**: MySQL
+- **Auth**: JWT + Refresh Tokens
+- **Encriptación**: crypto.scrypt + HMAC-SHA256
+
+## 📚 Próximas Funcionalidades
+
+- [ ] Modelo Alumnos
+- [ ] Gestión de Grupos
+- [ ] Reportes
+- [ ] Sistema de Actividades
+- [ ] Tailwind CSS
+- [ ] Animaciones
