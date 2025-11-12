@@ -1,0 +1,5 @@
+[00:00:03.229] Server  LOG      ✓ Ready in 2.3s
+[00:02:43.474] Server  ERROR    ⨯ Error: Access denied for user 'tu_usuario'@'localhost' (using password: YES)
+[00:03:12.305] Server  LOG        Reload env: .env
+[00:03:20.415] Server  LOG        Reload env: .env
+[00:04:29.431] Server  ERROR   DB error (docente): Error: Duplicate entry '1723110233a@utectulancingo.edu.mx' for key 'usuarios.correo'
