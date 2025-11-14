@@ -1,187 +1,246 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { withAuthProtection } from '@/lib/withAuth';
-
-interface User {
-  id_usuario: number;
-  nombre: string;
-  rol: string;
-  matricula?: string;
-}
+import DashboardLayout from '@/app/components/DashboardLayout';
 
 function DocenteDashboard() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [activeMenu, setActiveMenu] = useState('home');
+  const [selectedGroup, setSelectedGroup] = useState('1');
 
-  // Cargar datos del usuario desde localStorage
-  if (!user) {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch {
-        // Error al parsear
-      }
-    }
-  }
+  const groups = [
+    { id: '1', name: 'Inglés I', section: 'Contaduría 11', students: 11 },
+    { id: '2', name: 'Inglés I', section: 'Sistemas 12', students: 12 },
+    { id: '3', name: 'Inglés II', section: 'Enfermería 22', students: 22 },
+    { id: '4', name: 'Inglés II', section: 'Industrias 21', students: 21 },
+  ];
 
-  const handleLogout = async () => {
-    try {
-      // Primero limpiar localStorage ANTES de llamar al logout
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
+  const flaskIcon = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M8 3h8v3H8z" />
+      <path d="M8 6h8v8c0 2-1 4-4 4s-4-2-4-4V6z" />
+      <line x1="8" y1="18" x2="16" y2="18" />
+      <line x1="9" y1="18" x2="15" y2="20" />
+    </svg>
+  );
 
-      // Luego notificar al servidor
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
+  const peopleIcon = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
 
-      // Redirigir con pequeño delay para asegurar limpieza
-      await new Promise(resolve => setTimeout(resolve, 100));
-      router.push('/login');
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-      // Forzar redirección incluso si hay error
-      router.push('/login');
-    }
-  };
+  const selectedGroupData = groups.find(g => g.id === selectedGroup);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-gray-light)' }}>
-      {/* Navbar */}
-      <nav style={{
-        backgroundColor: 'var(--color-dark-blue)',
-        color: 'white',
-        padding: '20px 30px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        boxShadow: 'var(--shadow-md)',
-      }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>LinguaLab</h1>
-          <p style={{ margin: '5px 0 0 0', fontSize: '14px', opacity: 0.9 }}>Dashboard Docente</p>
-        </div>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ margin: '0 0 5px 0', fontSize: '14px', opacity: 0.9 }}>Bienvenido</p>
-            <p style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>{user?.nombre || 'Usuario'}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: 'var(--color-primary-green)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-full)',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              transition: 'all var(--transition-normal)',
-              boxShadow: 'var(--shadow-md)',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-primary-green-light)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-primary-green)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </nav>
-
-      {/* Contenido principal */}
-      <div style={{ padding: '40px 30px', maxWidth: '1200px', margin: '0 auto' }}>
+    <DashboardLayout
+      title="Docentes"
+      activeMenu={activeMenu}
+      onMenuItemClick={setActiveMenu}
+      roleType="docente"
+    >
+      <div style={{ padding: '24px' }}>
+        {/* Contenedor principal con borde */}
         <div style={{
+          border: '3px solid var(--color-dark-blue)',
+          borderRadius: '12px',
+          padding: '24px',
           backgroundColor: 'var(--color-white)',
-          padding: '40px',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-md)',
         }}>
-          <h2 style={{ marginTop: 0, color: 'var(--color-dark-blue)', fontSize: '32px', fontWeight: 'bold' }}>
-            Bienvenido, {user?.nombre}
-          </h2>
-          
-          {/* Card de información del usuario */}
-          <div style={{
-            padding: '24px',
-            backgroundColor: 'linear-gradient(135deg, rgba(46, 168, 83, 0.1) 0%, rgba(46, 168, 83, 0.05) 100%)',
-            borderLeft: '4px solid var(--color-primary-green)',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '30px',
-          }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-              <div>
-                <p style={{ margin: '0 0 8px 0', color: 'var(--color-gray-dark)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>Matrícula</p>
-                <p style={{ margin: 0, color: 'var(--color-dark-blue)', fontSize: '16px', fontWeight: 'bold' }}>{user?.matricula || 'N/A'}</p>
+          {/* Sección de Grupos */}
+          <div style={{ marginBottom: '24px' }}>
+            <h2 style={{ color: 'var(--color-dark-blue)', fontSize: '16px', fontWeight: '600', marginBottom: '16px', textTransform: 'uppercase' }}>
+              Groups
+            </h2>
+
+            {/* Fila con tarjeta de cantidad y tarjetas de grupos */}
+            <div style={{
+              display: 'flex',
+              gap: '16px',
+              overflowX: 'auto',
+              alignItems: 'center',
+              border: '3px solid var(--color-dark-blue)',
+              borderRadius: '12px',
+              padding: '20px',
+              backgroundColor: 'var(--color-white)',
+              minHeight: '140px',
+            }}>
+              {/* Tarjeta de cantidad */}
+              <div style={{
+                padding: '24px 20px',
+                backgroundColor: 'var(--color-white)',
+                border: '3px solid var(--color-dark-blue)',
+                borderRadius: '12px',
+                minWidth: '160px',
+                textAlign: 'center',
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+              }}>
+                <h3 style={{ margin: '0', color: 'var(--color-dark-blue)', fontSize: '48px', fontWeight: 'bold' }}>
+                  {groups.length}
+                </h3>
+                <p style={{ margin: '8px 0 0 0', color: 'var(--color-dark-blue)', fontSize: '14px', fontWeight: '600' }}>
+                  Groups
+                </p>
               </div>
-              <div>
-                <p style={{ margin: '0 0 8px 0', color: 'var(--color-gray-dark)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>Rol</p>
-                <p style={{ margin: 0, color: 'var(--color-dark-blue)', fontSize: '16px', fontWeight: 'bold' }}>{user?.rol || 'N/A'}</p>
-              </div>
-              <div>
-                <p style={{ margin: '0 0 8px 0', color: 'var(--color-gray-dark)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>ID Usuario</p>
-                <p style={{ margin: 0, color: 'var(--color-dark-blue)', fontSize: '16px', fontWeight: 'bold' }}>{user?.id_usuario || 'N/A'}</p>
-              </div>
+
+              {/* Tarjetas de grupos */}
+              {groups.map(group => (
+                <button
+                  key={group.id}
+                  onClick={() => setSelectedGroup(group.id)}
+                  style={{
+                    padding: '20px 16px',
+                    backgroundColor: 'var(--color-primary-green)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-normal)',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    minWidth: '130px',
+                    flexShrink: 0,
+                    height: '100px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{ fontSize: '14px', fontWeight: '700' }}>{group.name}</div>
+                  <div style={{ fontSize: '12px', opacity: 0.95, marginTop: '4px' }}>{group.section}</div>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Descripción y funcionalidades */}
-          <p style={{ color: 'var(--color-gray-dark)', lineHeight: '1.8', marginBottom: '20px', fontSize: '16px' }}>
-            Este es tu panel de control como docente. Desde aquí tendrás acceso a todas las herramientas necesarias para gestionar tu enseñanza.
-          </p>
-          
-          {/* Grid de funcionalidades */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
-            {[
-              { icon: '📚', title: 'Gestionar Grupos', desc: 'Crea y organiza tus grupos de estudiantes' },
-              { icon: '✓', title: 'Asignar Actividades', desc: 'Distribuye tareas y trabajos a tus alumnos' },
-              { icon: '📊', title: 'Revisar Progreso', desc: 'Monitorea el desempeño de tus estudiantes' },
-              { icon: '🎮', title: 'Crear Juegos', desc: 'Diseña juegos educativos interactivos' },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: '24px',
-                  backgroundColor: 'var(--background-neutral)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid #e5e7eb',
-                  transition: 'all var(--transition-normal)',
-                  cursor: 'pointer',
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-                  e.currentTarget.style.borderColor = 'var(--color-primary-green)';
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <div style={{ fontSize: '32px', marginBottom: '12px' }}>{item.icon}</div>
-                <h3 style={{ margin: '0 0 8px 0', color: 'var(--color-dark-blue)', fontSize: '18px', fontWeight: 'bold' }}>
-                  {item.title}
+          {/* Sección de grupo seleccionado y acciones */}
+          <div style={{
+            display: 'flex',
+            gap: '24px',
+            marginBottom: '24px',
+          }}>
+            {/* Información del grupo seleccionado */}
+            {selectedGroupData && (
+              <div style={{
+                padding: '24px 20px',
+                backgroundColor: 'var(--color-white)',
+                border: '3px solid var(--color-dark-blue)',
+                borderRadius: '12px',
+                minWidth: '220px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+              }}>
+                <h3 style={{ margin: '0 0 12px 0', color: 'var(--color-dark-blue)', fontSize: '18px', fontWeight: '600' }}>
+                  {selectedGroupData.name}
                 </h3>
-                <p style={{ margin: 0, color: 'var(--color-gray-dark)', fontSize: '14px' }}>
-                  {item.desc}
+                <p style={{ margin: 0, color: 'var(--color-dark-blue)', fontSize: '14px' }}>
+                  {selectedGroupData.section}
                 </p>
               </div>
-            ))}
+            )}
+
+            {/* Botones de acciones */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              flex: 1,
+            }}>
+              {['Promedio general', 'Recomendaciones'].map(action => (
+                <button
+                  key={action}
+                  style={{
+                    padding: '16px 24px',
+                    backgroundColor: 'var(--color-primary-green)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-normal)',
+                    minHeight: '50px',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {action}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sección de herramientas */}
+          <div>
+            <h3 style={{ color: 'var(--color-dark-blue)', fontSize: '14px', fontWeight: '600', marginBottom: '12px', textTransform: 'uppercase' }}>
+              Herramientas
+            </h3>
+            <div style={{
+              display: 'flex',
+              gap: '14px',
+            }}>
+              {[
+                { label: 'Labs', icon: flaskIcon },
+                { label: 'Activities', icon: peopleIcon },
+              ].map(tool => (
+                <button
+                  key={tool.label}
+                  style={{
+                    padding: '16px 28px',
+                    backgroundColor: 'var(--color-primary-green)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-normal)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    minHeight: '50px',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {tool.icon}
+                  {tool.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

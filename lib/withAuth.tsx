@@ -8,7 +8,7 @@ import { useTokenRefresh } from './useTokenRefresh';
  */
 export function withAuthProtection<P extends object>(
   Component: React.ComponentType<P>,
-  requiredRole?: 'docente' | 'administrador'
+  requiredRole?: 'docente' | 'administrador' | 'alumno'
 ) {
   return function ProtectedComponent(props: P) {
     const router = useRouter();
