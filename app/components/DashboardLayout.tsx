@@ -10,14 +10,22 @@ interface User {
   rol: string;
 }
 
+export interface SelectOption {
+  value: string | number;
+  label: string;
+}
+
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'password' | 'number' | 'tel';
+  type: 'text' | 'email' | 'password' | 'number' | 'tel' | 'select';
   placeholder: string;
   required?: boolean;
   autoFillFrom?: string; // Campo del cual auto-rellenar
   showInfo?: boolean; // Mostrar icono de info
+  infoMessage?: string; // Mensaje personalizado para el campo
+  options?: SelectOption[]; // Opciones para select
+  apiEndpoint?: string; // Endpoint para cargar opciones dinámicamente
 }
 
 interface DashboardLayoutProps {
@@ -36,6 +44,13 @@ interface DashboardLayoutProps {
     onClose: () => void;
     onSubmit: (formData: Record<string, string>) => Promise<void>;
     submitButtonLabel?: string;
+    successMessage?: string;
+    onSuccess?: () => void;
+  };
+  successModal?: {
+    isOpen: boolean;
+    message: string;
+    onClose: () => void;
   };
 }
 
@@ -61,6 +76,7 @@ export default function DashboardLayout({
   onToolClick,
   roleType = 'administrador',
   formModal,
+  successModal,
 }: DashboardLayoutProps) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -430,7 +446,74 @@ export default function DashboardLayout({
           fields={formModal.fields}
           onSubmit={formModal.onSubmit}
           submitButtonLabel={formModal.submitButtonLabel}
+          successMessage={formModal.successMessage}
+          onSuccess={formModal.onSuccess}
         />
+      )}
+
+      {/* Modal de éxito general */}
+      {successModal && successModal.isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
+          }}
+          onClick={successModal.onClose}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--color-dark-blue)',
+              borderRadius: '20px',
+              padding: '32px',
+              width: '90%',
+              maxWidth: '420px',
+              position: 'relative',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(46,168,83,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2ea853" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </div>
+            </div>
+            <h3 style={{ color: 'white', margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700 }}>{successModal.message}</h3>
+            <p style={{ color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '13px' }}>Los datos se han guardado correctamente.</p>
+            <button
+              onClick={successModal.onClose}
+              style={{
+                marginTop: '16px',
+                padding: '10px 20px',
+                backgroundColor: 'var(--color-primary-green)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Aceptar
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

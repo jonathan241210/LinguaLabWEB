@@ -26,6 +26,7 @@ const Icons = {
   teacher: <svg width="20" height="20" viewBox="0 0 640 640" fill="currentColor"><path d="M128 160C128 124.7 156.7 96 192 96L544 96C579.3 96 608 124.7 608 160L608 400L512 400L512 384C512 366.3 497.7 352 480 352L416 352C398.3 352 384 366.3 384 384L384 400L254.9 400C265.8 381.2 272 359.3 272 336C272 265.3 214.7 208 144 208C138.6 208 133.2 208.3 128 209L128 160zM333 512C327.9 487.8 316.7 465.9 300.9 448L608 448C608 483.3 579.3 512 544 512L333 512zM64 336C64 291.8 99.8 256 144 256C188.2 256 224 291.8 224 336C224 380.2 188.2 416 144 416C99.8 416 64 380.2 64 336zM0 544C0 491 43 448 96 448L192 448C245 448 288 491 288 544C288 561.7 273.7 576 256 576L32 576C14.3 576 0 561.7 0 544z"/></svg>,
   flask: <svg width="20" height="20" viewBox="0 0 640 640" fill="currentColor"><path d="M384 64L224 64C206.3 64 192 78.3 192 96C192 113.7 206.3 128 224 128L224 279.5L103.5 490.3C98.6 499 96 508.7 96 518.7C96 550.4 121.6 576 153.3 576L486.7 576C518.3 576 544 550.4 544 518.7C544 508.7 541.4 498.9 536.5 490.3L416 279.5L416 128C433.7 128 448 113.7 448 96C448 78.3 433.7 64 416 64L384 64zM288 279.5L288 128L352 128L352 279.5C352 290.6 354.9 301.6 360.4 311.3L402 384L238 384L279.6 311.3C285.1 301.6 288 290.7 288 279.5z"/></svg>,
   book: <svg width="20" height="20" viewBox="0 0 640 640" fill="currentColor"><path d="M480 576L192 576C139 576 96 533 96 480L96 160C96 107 139 64 192 64L496 64C522.5 64 544 85.5 544 112L544 400C544 420.9 530.6 438.7 512 445.3L512 512C529.7 512 544 526.3 544 544C544 561.7 529.7 576 512 576L480 576zM192 448C174.3 448 160 462.3 160 480C160 497.7 174.3 512 192 512L448 512L448 448L192 448zM224 216C224 229.3 234.7 240 248 240L424 240C437.3 240 448 229.3 448 216C448 202.7 437.3 192 424 192L248 192C234.7 192 224 202.7 224 216zM248 288C234.7 288 224 298.7 224 312C224 325.3 234.7 336 248 336L424 336C437.3 336 448 325.3 448 312C448 298.7 437.3 288 424 288L248 288z"/></svg>,
+  students: <svg width="20" height="20" viewBox="0 0 640 640" fill="currentColor"><path d="M80 259.8L289.2 345.9C299 349.9 309.4 352 320 352C330.6 352 341 349.9 350.8 345.9L593.2 246.1C602.2 242.4 608 233.7 608 224C608 214.3 602.2 205.6 593.2 201.9L350.8 102.1C341 98.1 330.6 96 320 96C309.4 96 299 98.1 289.2 102.1L46.8 201.9C37.8 205.6 32 214.3 32 224L32 520C32 533.3 42.7 544 56 544C69.3 544 80 533.3 80 520L80 259.8zM128 331.5L128 448C128 501 214 544 320 544C426 544 512 501 512 448L512 331.4L369.1 390.3C353.5 396.7 336.9 400 320 400C303.1 400 286.5 396.7 270.9 390.3L128 331.4z"/></svg>,
 };
 
 function AdminDashboard() {
@@ -33,6 +34,9 @@ function AdminDashboard() {
   const [stats, setStats] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTeacherForm, setShowTeacherForm] = useState(false);
+  const [showStudentForm, setShowStudentForm] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Cargar estadísticas desde la base de datos
   useEffect(() => {
@@ -87,6 +91,7 @@ function AdminDashboard() {
       required: true,
       autoFillFrom: 'matricula',
       showInfo: true,
+      infoMessage: 'El docente debe cambiar su contraseña en su perfil',
     },
   ];
 
@@ -128,29 +133,125 @@ function AdminDashboard() {
     { label: 'Create a new group', icon: Icons.group, action: 'create-group' },
     { label: 'Add a teacher', icon: Icons.teacher, action: 'add-teacher' },
     { label: 'Create a new lab', icon: Icons.flask, action: 'create-lab' },
+    { label: 'Add a student', icon: Icons.students, action: 'add-student' },
     { label: 'Add new vocabulary', icon: Icons.book, action: 'add-vocab' },
   ];
 
   const handleToolClick = (action: string) => {
     if (action === 'add-teacher') {
       setShowTeacherForm(true);
+    } else if (action === 'add-student') {
+      setShowStudentForm(true);
     } else {
       console.log(`Action: ${action}`);
     }
   };
 
-  return (
-    <DashboardLayout
-      title="Administrador"
-      activeMenu={activeMenu}
-      onMenuItemClick={setActiveMenu}
-      formModal={{
+  const addStudentFields = [
+    { name: 'nombre', label: 'Name(s)', type: 'text' as const, placeholder: '', required: true },
+    { name: 'primer_apellido', label: 'Last name', type: 'text' as const, placeholder: '', required: true },
+    { name: 'segundo_apellido', label: 'Second last name', type: 'text' as const, placeholder: '', required: false },
+    { name: 'matricula', label: 'Matricula', type: 'text' as const, placeholder: '', required: true },
+    { name: 'correo', label: 'Email', type: 'email' as const, placeholder: '', required: true },
+    { 
+      name: 'id_programa_alumno_fk', 
+      label: 'Program', 
+      type: 'select' as const, 
+      placeholder: '', 
+      required: true,
+      apiEndpoint: '/api/catalogs/programas',
+    },
+    { 
+      name: 'id_nivel_alumno_fk', 
+      label: 'Level', 
+      type: 'select' as const, 
+      placeholder: '', 
+      required: true,
+      apiEndpoint: '/api/catalogs/niveles',
+    },
+    {
+      name: 'contrasena',
+      label: 'Password',
+      type: 'password' as const,
+      placeholder: '',
+      required: true,
+      autoFillFrom: 'matricula',
+      showInfo: true,
+      infoMessage: 'El alumno debe cambiar su contraseña en su perfil',
+    },
+  ];
+
+  const handleAddStudent = async (formData: Record<string, string>) => {
+    try {
+      const response = await fetch('/api/auth/register-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          primer_apellido: formData.primer_apellido,
+          segundo_apellido: formData.segundo_apellido,
+          matricula: formData.matricula,
+          correo: formData.correo,
+          id_programa_alumno_fk: parseInt(formData.id_programa_alumno_fk),
+          id_nivel_alumno_fk: parseInt(formData.id_nivel_alumno_fk),
+          contrasena: formData.contrasena,
+          rol: 'alumno',
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error registrando alumno');
+      }
+      
+      // Cerrar el modal y mostrar mensaje de éxito
+      setShowStudentForm(false);
+      setSuccessMessage('Alumno registrado');
+      setShowSuccessModal(true);
+    } catch (err) {
+      console.error(err);
+      alert('Error al registrar alumno: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      throw err;
+    }
+  };
+
+  const currentForm = showTeacherForm
+    ? {
         isOpen: showTeacherForm,
         title: 'Add Teacher',
         fields: addTeacherFields,
         onClose: () => setShowTeacherForm(false),
         onSubmit: handleAddTeacher,
         submitButtonLabel: 'Add',
+        onSuccess: () => {
+          setSuccessMessage('Docente registrado');
+          setShowSuccessModal(true);
+        },
+      }
+    : showStudentForm
+    ? {
+        isOpen: showStudentForm,
+        title: 'Add Student',
+        fields: addStudentFields,
+        onClose: () => setShowStudentForm(false),
+        onSubmit: handleAddStudent,
+        submitButtonLabel: 'Add',
+        onSuccess: () => {
+          setSuccessMessage('Alumno registrado');
+          setShowSuccessModal(true);
+        },
+      }
+    : undefined;
+
+  return (
+    <DashboardLayout
+      title="Administrador"
+      activeMenu={activeMenu}
+      onMenuItemClick={setActiveMenu}
+      formModal={currentForm}
+      successModal={{
+        isOpen: showSuccessModal,
+        message: successMessage,
+        onClose: () => setShowSuccessModal(false),
       }}
     >
       <style jsx>{`

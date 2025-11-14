@@ -2,14 +2,22 @@
 
 import React from 'react';
 
+interface SelectOption {
+  value: string | number;
+  label: string;
+}
+
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'password' | 'number' | 'tel';
+  type: 'text' | 'email' | 'password' | 'number' | 'tel' | 'select';
   placeholder: string;
   required?: boolean;
   autoFillFrom?: string; // Campo del cual auto-rellenar
   showInfo?: boolean; // Mostrar icono de info
+  infoMessage?: string; // Mensaje personalizado para el campo
+  options?: SelectOption[]; // Opciones para select
+  apiEndpoint?: string; // Endpoint para cargar opciones dinámicamente
 }
 
 interface FormModalProps {
@@ -19,6 +27,8 @@ interface FormModalProps {
   fields: FormField[];
   onSubmit: (formData: Record<string, string>) => Promise<void>;
   submitButtonLabel?: string;
+  successMessage?: string;
+  onSuccess?: () => void;
 }
 
 export default function FormModal({
@@ -28,23 +38,66 @@ export default function FormModal({
   fields,
   onSubmit,
   submitButtonLabel = 'Add',
+  successMessage = 'Registro exitoso',
+  onSuccess,
 }: FormModalProps) {
   const [formData, setFormData] = React.useState<Record<string, string>>({});
   const [showConfirmation, setShowConfirmation] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [visiblePasswords, setVisiblePasswords] = React.useState<Record<string, boolean>>({});
+  const [selectOptions, setSelectOptions] = React.useState<Record<string, SelectOption[]>>({});
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Cargar opciones de selects desde API
+  React.useEffect(() => {
+    const loadSelectOptions = async () => {
+      for (const field of fields) {
+        if (field.type === 'select' && field.apiEndpoint) {
+          try {
+            const response = await fetch(field.apiEndpoint);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.data) {
+                // Convertir la respuesta al formato SelectOption
+                const options = data.data.map((item: any) => ({
+                  value: item.id_programa || item.id_nivel,
+                  label: item.nombre,
+                }));
+                setSelectOptions(prev => ({ ...prev, [field.name]: options }));
+              }
+            }
+          } catch (error) {
+            console.error(`Error cargando opciones para ${field.name}:`, error);
+          }
+        } else if (field.type === 'select' && field.options) {
+          // Usar opciones estáticas si se proveen
+          setSelectOptions(prev => ({ ...prev, [field.name]: field.options! }));
+        }
+      }
+    };
+    
+    if (isOpen) {
+      loadSelectOptions();
+    }
+  }, [isOpen, fields]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
     // Auto-llenar campos dependientes (ej: password desde matricula)
     let newFormData = { ...formData, [name]: value };
     
+    // Si el campo editado es origen de auto-fill, actualizar sus dependientes
+    const dependents = fields.filter(f => f.autoFillFrom === name);
+    if (dependents.length > 0) {
+      dependents.forEach(dep => {
+        newFormData[dep.name] = value;
+      });
+    }
+
+    // Si el campo editado es un campo con autoFillFrom (poco común), sincronizarlo desde su fuente
     const fieldConfig = fields.find(f => f.name === name);
-    if (fieldConfig?.autoFillFrom) {
-      const sourceField = fields.find(f => f.name === fieldConfig.autoFillFrom);
-      if (sourceField && newFormData[fieldConfig.autoFillFrom]) {
-        newFormData[name] = newFormData[fieldConfig.autoFillFrom];
-      }
+    if (fieldConfig?.autoFillFrom && newFormData[fieldConfig.autoFillFrom]) {
+      newFormData[name] = newFormData[fieldConfig.autoFillFrom];
     }
 
     setFormData(newFormData);
@@ -62,6 +115,9 @@ export default function FormModal({
       setFormData({});
       setShowConfirmation(false);
       onClose();
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       console.error('Error submitting form:', error);
     } finally {
@@ -156,49 +212,113 @@ export default function FormModal({
                   >
                     {field.label}
                   </label>
-                  {field.showInfo && (
-                    <div
+                </div>
+                {field.type === 'password' ? (
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={visiblePasswords[field.name] ? 'text' : 'password'}
+                      name={field.name}
+                      placeholder=""
+                      required={field.required}
+                      value={formData[field.name] || ''}
+                      onChange={handleInputChange}
+                      readOnly={field.autoFillFrom ? true : false}
                       style={{
-                        position: 'relative',
-                        display: 'inline-flex',
+                        padding: '12px 44px 12px 16px',
+                        borderRadius: '12px',
+                        border: '2px solid var(--color-dark-blue)',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        backgroundColor: 'white',
+                        color: '#333',
+                        cursor: field.autoFillFrom ? 'not-allowed' : 'text',
+                        opacity: 1,
+                        width: '100%',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={visiblePasswords[field.name] ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      onClick={() => setVisiblePasswords(prev => ({ ...prev, [field.name]: !prev[field.name] }))}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        backgroundColor: 'rgba(255, 193, 7, 0.9)',
-                        color: '#333',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        cursor: 'help',
-                        marginLeft: '4px',
                       }}
-                      title="El docente debe cambiar su contraseña en su perfil"
                     >
-                      !
-                    </div>
-                  )}
-                </div>
-                <input
-                  type={field.type}
-                  name={field.name}
-                  placeholder=""
-                  required={field.required}
-                  value={formData[field.name] || ''}
-                  onChange={handleInputChange}
-                  readOnly={field.autoFillFrom ? true : false}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '12px',
-                    border: '2px solid var(--color-dark-blue)',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    backgroundColor: 'white',
-                    color: '#333',
-                    cursor: field.autoFillFrom ? 'not-allowed' : 'text',
-                    opacity: 1,
-                  }}
-                />
+                      {visiblePasswords[field.name] ? (
+                        // Eye open icon
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      ) : (
+                        // Eye closed icon
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a21.8 21.8 0 0 1 5.06-5.94"/>
+                          <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-3.42"/>
+                          <path d="M1 1l22 22"/>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                ) : field.type === 'select' ? (
+                  <select
+                    name={field.name}
+                    required={field.required}
+                    value={formData[field.name] || ''}
+                    onChange={handleInputChange}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      border: '2px solid var(--color-dark-blue)',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      backgroundColor: 'white',
+                      color: '#333',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="">Seleccionar...</option>
+                    {(selectOptions[field.name] || []).map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    name={field.name}
+                    placeholder=""
+                    required={field.required}
+                    value={formData[field.name] || ''}
+                    onChange={handleInputChange}
+                    readOnly={field.autoFillFrom ? true : false}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      border: '2px solid var(--color-dark-blue)',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      backgroundColor: 'white',
+                      color: '#333',
+                      cursor: field.autoFillFrom ? 'not-allowed' : 'text',
+                      opacity: 1,
+                    }}
+                  />
+                )}
                 {field.showInfo && formData[field.name] && (
                   <div style={{
                     fontSize: '11px',
@@ -206,7 +326,7 @@ export default function FormModal({
                     marginTop: '4px',
                     fontStyle: 'italic',
                   }}>
-                    El docente debe cambiar su contraseña en su perfil
+                    {field.infoMessage || 'El usuario debe cambiar su contraseña en su perfil'}
                   </div>
                 )}
               </div>
@@ -315,7 +435,9 @@ export default function FormModal({
                   {field.label}
                 </div>
                 <div style={{ color: 'white', fontSize: '14px', fontWeight: '500' }}>
-                  {field.type === 'password' ? '••••••••' : formData[field.name] || '—'}
+                  {field.type === 'password'
+                    ? `••••••••${formData['matricula'] && formData[field.name] === formData['matricula'] ? ' (matrícula)' : ''}`
+                    : formData[field.name] || '—'}
                 </div>
               </div>
             ))}
