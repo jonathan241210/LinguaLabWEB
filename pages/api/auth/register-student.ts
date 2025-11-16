@@ -24,25 +24,12 @@ export default async function handler(
       segundo_apellido,
       matricula,
       correo,
-      id_programa_alumno_fk,
-      id_nivel_alumno_fk,
       contrasena,
       rol,
     } = req.body;
 
-    if (!nombre || !primer_apellido || !matricula || !correo || !id_programa_alumno_fk || !id_nivel_alumno_fk || !contrasena) {
+    if (!nombre || !primer_apellido || !matricula || !correo || !contrasena) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
-    }
-
-    // Validar que los IDs de programa y nivel existan
-    const programaExists = await query('SELECT id_programa FROM programas_educativos WHERE id_programa = ? AND activo = 1', [id_programa_alumno_fk]);
-    if (!Array.isArray(programaExists) || programaExists.length === 0) {
-      return res.status(400).json({ error: 'El programa educativo seleccionado no es válido' });
-    }
-
-    const nivelExists = await query('SELECT id_nivel FROM niveles_educativos WHERE id_nivel = ? AND activo = 1', [id_nivel_alumno_fk]);
-    if (!Array.isArray(nivelExists) || nivelExists.length === 0) {
-      return res.status(400).json({ error: 'El nivel educativo seleccionado no es válido' });
     }
 
     const existingUser = await query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo]);
@@ -63,9 +50,10 @@ export default async function handler(
     );
     const userId = (userResult as any).insertId;
 
+    // Insertar alumno SIN programa ni nivel (se asignarán al crear grupo)
     const studentResult = await query(
-      'INSERT INTO alumnos (id_usuario_alumno_fk, matricula, id_programa_alumno_fk, id_nivel_alumno_fk) VALUES (?, ?, ?, ?)',
-      [userId, matricula, id_programa_alumno_fk, id_nivel_alumno_fk]
+      'INSERT INTO alumnos (id_usuario_alumno_fk, matricula) VALUES (?, ?)',
+      [userId, matricula]
     );
 
     return res.status(201).json({
@@ -79,8 +67,6 @@ export default async function handler(
         segundo_apellido,
         matricula,
         correo,
-        id_programa_alumno_fk,
-        id_nivel_alumno_fk,
         rol: 'alumno',
       },
     });

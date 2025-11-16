@@ -422,25 +422,37 @@ export default function FormModal({
               overflowY: 'auto',
             }}
           >
-            {fields.map(field => (
-              <div
-                key={field.name}
-                style={{
-                  marginBottom: '12px',
-                  paddingBottom: '12px',
-                  borderBottom: '1px solid rgba(255,255,255,0.2)',
-                }}
-              >
-                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                  {field.label}
+            {fields.map(field => {
+              // Para campos select, mostrar el label en lugar del value
+              let displayValue = formData[field.name] || '—';
+              
+              if (field.type === 'select' && formData[field.name]) {
+                const selectedOption = (selectOptions[field.name] || []).find(
+                  opt => String(opt.value) === String(formData[field.name])
+                );
+                displayValue = selectedOption?.label || formData[field.name];
+              } else if (field.type === 'password') {
+                displayValue = `••••••••${formData['matricula'] && formData[field.name] === formData['matricula'] ? ' (matrícula)' : ''}`;
+              }
+
+              return (
+                <div
+                  key={field.name}
+                  style={{
+                    marginBottom: '12px',
+                    paddingBottom: '12px',
+                    borderBottom: '1px solid rgba(255,255,255,0.2)',
+                  }}
+                >
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                    {field.label}
+                  </div>
+                  <div style={{ color: 'white', fontSize: '14px', fontWeight: '500' }}>
+                    {displayValue}
+                  </div>
                 </div>
-                <div style={{ color: 'white', fontSize: '14px', fontWeight: '500' }}>
-                  {field.type === 'password'
-                    ? `••••••••${formData['matricula'] && formData[field.name] === formData['matricula'] ? ' (matrícula)' : ''}`
-                    : formData[field.name] || '—'}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Botones de acción */}

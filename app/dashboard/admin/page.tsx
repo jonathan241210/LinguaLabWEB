@@ -153,22 +153,6 @@ function AdminDashboard() {
     { name: 'segundo_apellido', label: 'Second last name', type: 'text' as const, placeholder: '', required: false },
     { name: 'matricula', label: 'Matricula', type: 'text' as const, placeholder: '', required: true },
     { name: 'correo', label: 'Email', type: 'email' as const, placeholder: '', required: true },
-    { 
-      name: 'id_programa_alumno_fk', 
-      label: 'Program', 
-      type: 'select' as const, 
-      placeholder: '', 
-      required: true,
-      apiEndpoint: '/api/catalogs/programas',
-    },
-    { 
-      name: 'id_nivel_alumno_fk', 
-      label: 'Level', 
-      type: 'select' as const, 
-      placeholder: '', 
-      required: true,
-      apiEndpoint: '/api/catalogs/niveles',
-    },
     {
       name: 'contrasena',
       label: 'Password',

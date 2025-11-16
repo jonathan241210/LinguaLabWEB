@@ -256,7 +256,17 @@ export default function DashboardLayout({
           {finalMenuItems.map((item) => (
             <div
               key={item.id}
-              onClick={() => onMenuItemClick?.(item.id)}
+              onClick={() => {
+                onMenuItemClick?.(item.id);
+                // Navegación específica para ciertos items
+                if (item.id === 'groups' && roleType === 'administrador') {
+                  router.push('/dashboard/admin/grupos');
+                } else if (item.id === 'home') {
+                  if (roleType === 'administrador') router.push('/dashboard/admin');
+                  else if (roleType === 'docente') router.push('/dashboard/docente');
+                  else if (roleType === 'alumno') router.push('/dashboard/alumnos');
+                }
+              }}
               className={`menu-item ${activeMenu === item.id ? 'active' : ''}`}
               style={{
                 backgroundColor: activeMenu === item.id ? 'var(--color-primary-green)' : 'transparent',
