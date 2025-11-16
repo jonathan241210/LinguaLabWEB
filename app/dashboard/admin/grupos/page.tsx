@@ -43,7 +43,7 @@ interface Docente {
 }
 
 function GruposPage() {
-  const [activeMenu, setActiveMenu] = useState('grupos');
+  const [activeMenu, setActiveMenu] = useState('groups');
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [alumnosDisponibles, setAlumnosDisponibles] = useState<Alumno[]>([]);
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
@@ -474,6 +474,17 @@ function GruposPage() {
                 fontWeight: '600',
                 cursor: 'pointer',
                 width: '100%',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-primary-green-light)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(46, 168, 83, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-primary-green)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
               }}
             >
               Asignar Docente

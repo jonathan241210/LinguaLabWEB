@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import FormModal from './FormModal';
 
 interface User {
@@ -79,7 +79,15 @@ export default function DashboardLayout({
   successModal,
 }: DashboardLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('sidebarCollapsed');
+      return stored ? JSON.parse(stored) : true;
+    }
+    return true;
+  });
 
   // Menú por defecto según el rol
   const defaultMenuItems = {
@@ -134,6 +142,54 @@ export default function DashboardLayout({
       console.error('Error al cerrar sesión:', error);
       router.push('/login');
     }
+  };
+
+  const getPathForItem = (id: string) => {
+    if (roleType === 'administrador') {
+      switch (id) {
+        case 'home':
+          return '/dashboard/admin';
+        case 'groups':
+          return '/dashboard/admin/grupos';
+        case 'students':
+          return '/dashboard/admin/alumnos';
+        case 'teachers':
+          return '/dashboard/admin/docentes';
+        case 'labs':
+          return '/dashboard/admin';
+        case 'vocab':
+          return '/dashboard/admin';
+        default:
+          return undefined;
+      }
+    } else if (roleType === 'docente') {
+      switch (id) {
+        case 'home':
+          return '/dashboard/docente';
+        case 'groups':
+          return '/dashboard/docente';
+        default:
+          return undefined;
+      }
+    } else if (roleType === 'alumno') {
+      switch (id) {
+        case 'home':
+          return '/dashboard/alumnos';
+        case 'courses':
+          return '/dashboard/alumnos';
+        default:
+          return undefined;
+      }
+    }
+    return undefined;
+  };
+
+  const isItemActive = (id: string) => {
+    // Si se pasa activeMenu, se respeta; si no, se infiere por ruta
+    if (activeMenu) return activeMenu === id;
+    const expected = getPathForItem(id);
+    if (!expected) return false;
+    return pathname?.startsWith(expected) ?? false;
   };
 
   return (
@@ -201,23 +257,47 @@ export default function DashboardLayout({
           cursor: pointer;
           padding: 12px 16px;
           border-radius: 8px;
-          transition: all var(--transition-normal);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
           align-items: center;
           gap: 12px;
           border-left: 3px solid transparent;
           margin: 8px 0;
+          position: relative;
+          overflow: hidden;
         }
 
-        .menu-item:hover {
-          background-color: rgba(46, 168, 83, 0.2);
+        .menu-item::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 100%;
+          width: 0;
+          background: linear-gradient(90deg, rgba(46, 168, 83, 0.15) 0%, rgba(46, 168, 83, 0.05) 100%);
+          transition: width 0.3s ease;
+          z-index: 0;
+        }
+
+        .menu-item:hover:not(.active)::before {
+          width: 100%;
+        }
+
+        .menu-item:hover:not(.active) {
           border-left-color: var(--color-primary-green);
+          padding-left: 20px;
         }
 
         .menu-item.active {
           background-color: var(--color-primary-green);
           color: white;
           border-left-color: var(--color-primary-green-dark);
+          box-shadow: 0 4px 12px rgba(46, 168, 83, 0.3);
+        }
+
+        .menu-item > * {
+          position: relative;
+          z-index: 1;
         }
       `}</style>
 
@@ -225,34 +305,51 @@ export default function DashboardLayout({
       <div 
         className="animate-slide-in-left"
         style={{
-          width: '280px',
+          width: sidebarCollapsed ? '72px' : '280px',
           backgroundColor: '#2c1f4a',
           color: 'white',
-          padding: '24px 16px',
+          padding: sidebarCollapsed ? '16px 8px' : '24px 16px',
           display: 'flex',
           flexDirection: 'column',
           gap: '32px',
           boxShadow: 'var(--shadow-lg)',
+          transition: 'width 0.2s ease',
+        }}
+        onMouseEnter={() => {
+          setSidebarCollapsed(false);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('sidebarCollapsed', 'false');
+          }
+        }}
+        onMouseLeave={() => {
+          setSidebarCollapsed(true);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('sidebarCollapsed', 'true');
+          }
         }}
       >
         {/* Logo y Título */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: sidebarCollapsed ? '8px' : '16px' }}>
           <img
             src="/logo1.png"
             alt="LinguaLab"
-            style={{ width: '60px', height: '60px', objectFit: 'contain' }}
+            style={{ width: sidebarCollapsed ? '36px' : '60px', height: sidebarCollapsed ? '36px' : '60px', objectFit: 'contain', transition: 'all 0.2s' }}
           />
-          <div style={{ textAlign: 'center', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-            <p style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', opacity: 0.7 }}>Principal</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: 'bold' }}>{title}</p>
-          </div>
+          {!sidebarCollapsed && (
+            <div style={{ textAlign: 'center', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+              <p style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', opacity: 0.7 }}>Principal</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: 'bold' }}>{title}</p>
+            </div>
+          )}
         </div>
 
         {/* Menú */}
         <nav style={{ flex: 1 }}>
-          <p style={{ fontSize: '12px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '16px', letterSpacing: '1px' }}>
-            Menú<br />Main
-          </p>
+          {!sidebarCollapsed && (
+            <p style={{ fontSize: '12px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '16px', letterSpacing: '1px' }}>
+              Menú<br />Main
+            </p>
+          )}
           {finalMenuItems.map((item) => (
             <div
               key={item.id}
@@ -267,15 +364,18 @@ export default function DashboardLayout({
                   else if (roleType === 'alumno') router.push('/dashboard/alumnos');
                 }
               }}
-              className={`menu-item ${activeMenu === item.id ? 'active' : ''}`}
+              className={`menu-item ${isItemActive(item.id) ? 'active' : ''}`}
               style={{
-                backgroundColor: activeMenu === item.id ? 'var(--color-primary-green)' : 'transparent',
-                color: activeMenu === item.id ? 'white' : '#e5e7eb',
-                borderLeftColor: activeMenu === item.id ? 'var(--color-primary-green-dark)' : 'transparent',
+                backgroundColor: isItemActive(item.id) ? 'var(--color-primary-green)' : 'transparent',
+                color: isItemActive(item.id) ? 'white' : '#e5e7eb',
+                borderLeftColor: isItemActive(item.id) ? 'var(--color-primary-green-dark)' : 'transparent',
+                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
               }}
             >
-              <span style={{ fontSize: '18px', display: 'flex', alignItems: 'center', color: activeMenu === item.id ? 'white' : 'currentColor' }}>{item.icon}</span>
-              <span style={{ fontSize: '14px', fontWeight: activeMenu === item.id ? 600 : 400 }}>{item.label}</span>
+              <span style={{ fontSize: '18px', display: 'flex', alignItems: 'center', color: isItemActive(item.id) ? 'white' : 'currentColor' }}>{item.icon}</span>
+              {!sidebarCollapsed && (
+                <span style={{ fontSize: '14px', fontWeight: isItemActive(item.id) ? 600 : 400 }}>{item.label}</span>
+              )}
             </div>
           ))}
         </nav>
@@ -321,8 +421,9 @@ export default function DashboardLayout({
           </div>
         )}
 
-        {/* Botón Logout */}
+        {/* Botón Logout (ícono X) */}
         <button
+          title="Logout"
           onClick={handleLogout}
           style={{
             width: '100%',
@@ -336,6 +437,10 @@ export default function DashboardLayout({
             cursor: 'pointer',
             transition: 'all var(--transition-normal)',
             boxShadow: 'var(--shadow-md)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = '#dc2626';
@@ -348,7 +453,13 @@ export default function DashboardLayout({
             e.currentTarget.style.transform = 'scale(1)';
           }}
         >
-          Logout
+          {sidebarCollapsed ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true" focusable="false">
+              <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z" />
+            </svg>
+          ) : (
+            'Logout'
+          )}
         </button>
       </div>
 
@@ -469,7 +580,6 @@ export default function DashboardLayout({
             top: 0,
             left: 0,
             right: 0,
-            bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
             display: 'flex',
             alignItems: 'center',
