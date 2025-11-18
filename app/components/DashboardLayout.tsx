@@ -174,7 +174,7 @@ export default function DashboardLayout({
         case 'labs':
           return '/dashboard/admin';
         case 'vocab':
-          return '/dashboard/admin';
+          return '/dashboard/admin/vocabulario';
         default:
           return undefined;
       }
