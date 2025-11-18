@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { nivel, contenido, archivo_original } = req.body
+    const { nivel, contenido, archivo_original, units_structure } = req.body
 
     if (!nivel) {
       return res.status(400).json({ error: 'Missing required field: nivel' })
@@ -25,16 +25,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const connection = await pool.getConnection()
     
     try {
+      // Save both the flattened array and the units structure
+      const contenidoToSave = units_structure && units_structure.length > 0 
+        ? units_structure  // Save the complete structure with units
+        : contenido        // Fallback to flat array
+      
       const [result] = await connection.query(
         `INSERT INTO vocabulario (nivel, contenido, archivo_original)
          VALUES (?, ?, ?)`,
-        [nivel, JSON.stringify(contenido), filename]
+        [nivel, JSON.stringify(contenidoToSave), filename]
       )
+
+      const insertId = (result as any).insertId
 
       res.status(200).json({
         message: 'Vocabulary saved successfully',
-        id: (result as any).insertId,
-        filename: filename,
+        vocabulario: {
+          id_vocabulario: insertId,
+          nivel: nivel,
+          contenido: contenidoToSave,
+          archivo_original: filename
+        },
         entries: contenido.length
       })
     } finally {
