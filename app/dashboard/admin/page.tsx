@@ -37,8 +37,9 @@ function AdminDashboard() {
   const [showStudentForm, setShowStudentForm] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
 
-  // Cargar estadísticas desde la base de datos
+  // Load stats from database
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -52,7 +53,7 @@ function AdminDashboard() {
           }));
           setStats(statsWithIcons);
         } else {
-          // Si no hay datos, usar valores por defecto
+          // Use default values if no data
           setStats([
             { label: 'Labs', value: 0, icon: IconsLarge.flask, subtitle: 'No labs yet' },
             { label: 'Groups', value: 0, icon: IconsLarge.group, subtitle: 'No groups yet' },
@@ -62,7 +63,7 @@ function AdminDashboard() {
         }
       } catch (error) {
         console.error('Error loading stats:', error);
-        // Valores por defecto en caso de error
+        // Default values in case of error
         setStats([
           { label: 'Labs', value: 0, icon: IconsLarge.flask, subtitle: 'No labs yet' },
           { label: 'Groups', value: 0, icon: IconsLarge.group, subtitle: 'No groups yet' },
@@ -81,7 +82,7 @@ function AdminDashboard() {
     { name: 'nombre', label: 'Name(s)', type: 'text' as const, placeholder: '', required: true },
     { name: 'primer_apellido', label: 'Last name', type: 'text' as const, placeholder: '', required: true },
     { name: 'segundo_apellido', label: 'Second last name', type: 'text' as const, placeholder: '', required: false },
-    { name: 'matricula', label: 'Matricula', type: 'text' as const, placeholder: '', required: true },
+    { name: 'matricula', label: 'Teacher ID', type: 'text' as const, placeholder: '', required: true },
     { name: 'correo', label: 'Email', type: 'email' as const, placeholder: '', required: true },
     { 
       name: 'contrasena', 
@@ -91,7 +92,7 @@ function AdminDashboard() {
       required: true,
       autoFillFrom: 'matricula',
       showInfo: true,
-      infoMessage: 'El docente debe cambiar su contraseña en su perfil',
+      infoMessage: 'Teacher must change password in profile',
     },
   ];
 
@@ -113,28 +114,30 @@ function AdminDashboard() {
         }),
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error registrando docente');
+        setMessageType('error');
+        setSuccessMessage(data.error || 'Error registering teacher');
+        setShowSuccessModal(true);
+        setShowTeacherForm(false);
+        throw new Error(data.error || 'Error registering teacher');
       }
 
-      const data = await response.json();
-      console.log('Docente registrado exitosamente:', data);
-      // Aquí puedes agregar una notificación de éxito
+      console.log('Teacher registered successfully:', data);
       
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al registrar docente: ' + (error instanceof Error ? error.message : 'Error desconocido'));
       throw error;
     }
   };
 
   const tools = [
-    { label: 'Create a new group', icon: Icons.group, action: 'create-group' },
-    { label: 'Add a teacher', icon: Icons.teacher, action: 'add-teacher' },
-    { label: 'Create a new lab', icon: Icons.flask, action: 'create-lab' },
-    { label: 'Add a student', icon: Icons.students, action: 'add-student' },
-    { label: 'Add new vocabulary', icon: Icons.book, action: 'add-vocab' },
+    { label: 'Create new group', icon: Icons.group, action: 'create-group' },
+    { label: 'Add teacher', icon: Icons.teacher, action: 'add-teacher' },
+    { label: 'Create new lab', icon: Icons.flask, action: 'create-lab' },
+    { label: 'Add student', icon: Icons.students, action: 'add-student' },
+    { label: 'Add vocabulary', icon: Icons.book, action: 'add-vocab' },
   ];
 
   const handleToolClick = (action: string) => {
@@ -151,7 +154,7 @@ function AdminDashboard() {
     { name: 'nombre', label: 'Name(s)', type: 'text' as const, placeholder: '', required: true },
     { name: 'primer_apellido', label: 'Last name', type: 'text' as const, placeholder: '', required: true },
     { name: 'segundo_apellido', label: 'Second last name', type: 'text' as const, placeholder: '', required: false },
-    { name: 'matricula', label: 'Matricula', type: 'text' as const, placeholder: '', required: true },
+    { name: 'matricula', label: 'Student ID', type: 'text' as const, placeholder: '', required: true },
     { name: 'correo', label: 'Email', type: 'email' as const, placeholder: '', required: true },
     {
       name: 'contrasena',
@@ -161,7 +164,7 @@ function AdminDashboard() {
       required: true,
       autoFillFrom: 'matricula',
       showInfo: true,
-      infoMessage: 'El alumno debe cambiar su contraseña en su perfil',
+      infoMessage: 'Student must change password in profile',
     },
   ];
 
@@ -182,18 +185,24 @@ function AdminDashboard() {
           rol: 'alumno',
         }),
       });
+      
+      const data = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error registrando alumno');
+        setMessageType('error');
+        setSuccessMessage(data.error || 'Error registering student');
+        setShowSuccessModal(true);
+        setShowStudentForm(false);
+        throw new Error(data.error || 'Error registering student');
       }
       
       // Cerrar el modal y mostrar mensaje de éxito
       setShowStudentForm(false);
-      setSuccessMessage('Alumno registrado');
+      setMessageType('success');
+      setSuccessMessage('Student registered successfully');
       setShowSuccessModal(true);
     } catch (err) {
       console.error(err);
-      alert('Error al registrar alumno: ' + (err instanceof Error ? err.message : 'Error desconocido'));
       throw err;
     }
   };
@@ -207,7 +216,8 @@ function AdminDashboard() {
         onSubmit: handleAddTeacher,
         submitButtonLabel: 'Add',
         onSuccess: () => {
-          setSuccessMessage('Docente registrado');
+          setMessageType('success');
+          setSuccessMessage('Teacher registered successfully');
           setShowSuccessModal(true);
         },
       }
@@ -220,7 +230,7 @@ function AdminDashboard() {
         onSubmit: handleAddStudent,
         submitButtonLabel: 'Add',
         onSuccess: () => {
-          setSuccessMessage('Alumno registrado');
+          setSuccessMessage('Student registered successfully');
           setShowSuccessModal(true);
         },
       }
@@ -228,17 +238,67 @@ function AdminDashboard() {
 
   return (
     <DashboardLayout
-      title="Administrador"
+      title="Administrator"
       activeMenu={activeMenu}
       onMenuItemClick={setActiveMenu}
       formModal={currentForm}
       successModal={{
         isOpen: showSuccessModal,
         message: successMessage,
+        type: messageType,
         onClose: () => setShowSuccessModal(false),
       }}
     >
       <style jsx>{`
+        @keyframes llw-toast-slide-in {
+          0% { 
+            opacity: 0; 
+            transform: translateX(100%) scale(0.8); 
+          }
+          50% { 
+            opacity: 0.8; 
+            transform: translateX(-5px) scale(1.05); 
+          }
+          100% { 
+            opacity: 1; 
+            transform: translateX(0) scale(1); 
+          }
+        }
+        @keyframes llw-toast-slide-out {
+          0% { 
+            opacity: 1; 
+            transform: translateX(0) scale(1); 
+          }
+          100% { 
+            opacity: 0; 
+            transform: translateX(50px) scale(0.9); 
+          }
+        }
+        @keyframes llw-card-float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-2px) rotate(0.5deg); }
+        }
+        
+        @media (max-width: 768px) {
+          .llw-header {
+            padding: 12px 16px !important;
+          }
+          .stat-card {
+            min-width: 100% !important;
+          }
+          .tool-button {
+            min-width: 100% !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .stat-card h3 {
+            font-size: 14px !important;
+          }
+          .stat-card p {
+            font-size: 24px !important;
+          }
+        }
+
         .stat-card {
           background: var(--color-white);
           border-radius: var(--radius-lg);
@@ -251,8 +311,9 @@ function AdminDashboard() {
 
         .stat-card:hover {
           box-shadow: var(--shadow-lg);
-          transform: translateY(-4px);
+          transform: translateY(-6px) scale(1.02);
           border-color: var(--color-primary-green);
+          animation: llw-card-float 2s ease-in-out infinite;
         }
 
         .tool-button {
@@ -314,7 +375,7 @@ function AdminDashboard() {
       `}</style>
 
       {/* Estadísticas */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '20px', marginBottom: '40px' }}>
             {stats.map((stat, idx) => (
               <div
                 key={idx}
@@ -373,7 +434,7 @@ function AdminDashboard() {
                       fontWeight: 600,
                       marginTop: '4px',
                     }}>
-                      Último: {stat.lastAdded}
+                      Last: {stat.lastAdded}
                     </div>
                   )}
                 </div>
@@ -386,7 +447,7 @@ function AdminDashboard() {
             <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-dark-blue)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Tools
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px' }}>
               {tools.map((tool, idx) => (
                 <div
                   key={idx}

@@ -7,7 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Contar total de juegos (laboratorios) y obtener el último creado
+    // Count total labs and get the last created
     const juegosCountData = await query(
       `SELECT COUNT(*) as total FROM juegos`
     ) as any[];
@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const totalJuegos = juegosCountData?.[0]?.total || 0;
     const lastJuegoNombre = juegosLastData?.[0]?.last_nombre || null;
 
-    // Contar total de grupos y obtener el último creado
+    // Count total groups and get the last created
     const gruposCountData = await query(
       `SELECT COUNT(*) as total FROM grupos`
     ) as any[];
@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const totalGrupos = gruposCountData?.[0]?.total || 0;
     const lastGrupoNombre = gruposLastData?.[0]?.last_nombre || null;
 
-    // Contar total de estudiantes activos
+    // Count total active students
     const estudiantesData = await query(
       `SELECT COUNT(*) as total 
        FROM alumnos a 
@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const totalEstudiantes = estudiantesData?.[0]?.total || 0;
 
-    // Contar total de docentes activos
+    // Count total active teachers
     const totalDocentesData = await query(
       `SELECT COUNT(*) as total 
        FROM docentes d 
@@ -51,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const totalDocentes = totalDocentesData?.[0]?.total || 0;
 
-    // Obtener el último docente agregado
+    // Get the last added teacher
     const lastDocenteData = await query(
       `SELECT u.nombre as last_nombre 
        FROM docentes d 
@@ -63,30 +63,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const lastDocenteNombre = lastDocenteData?.[0]?.last_nombre || null;
 
-    // Construir respuesta
+    // Build response
     const stats = [
       {
         label: 'Labs',
         value: totalJuegos,
-        subtitle: totalJuegos > 0 ? `${totalJuegos} juegos disponibles` : 'Sin laboratorios aún',
+        subtitle: totalJuegos > 0 ? `${totalJuegos} labs available` : 'No labs yet',
         lastAdded: lastJuegoNombre || undefined,
       },
       {
         label: 'Groups',
         value: totalGrupos,
-        subtitle: totalGrupos > 0 ? `${totalGrupos} grupos activos` : 'Sin grupos aún',
+        subtitle: totalGrupos > 0 ? `${totalGrupos} active groups` : 'No groups yet',
         lastAdded: lastGrupoNombre || undefined,
       },
       {
         label: 'Students',
         value: totalEstudiantes,
-        subtitle: totalEstudiantes > 0 ? `${totalEstudiantes} estudiantes registrados` : 'Sin estudiantes aún',
+        subtitle: totalEstudiantes > 0 ? `${totalEstudiantes} registered students` : 'No students yet',
         lastAdded: undefined,
       },
       {
         label: 'Teachers',
         value: totalDocentes,
-        subtitle: totalDocentes > 0 ? `${totalDocentes} docentes activos` : 'Sin docentes aún',
+        subtitle: totalDocentes > 0 ? `${totalDocentes} active teachers` : 'No teachers yet',
         lastAdded: lastDocenteNombre || undefined,
       },
     ];
@@ -94,6 +94,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json(stats);
   } catch (error) {
     console.error('Error fetching stats:', error);
-    return res.status(500).json({ error: 'Error al obtener estadísticas' });
+    return res.status(500).json({ error: 'Error fetching statistics' });
   }
 }

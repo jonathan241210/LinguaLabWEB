@@ -7,7 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { nombre, id_cuatrimestre_grupo_fk, id_cohorte_grupo_fk, estado_practicas = 0 } = req.body;
+    const { nombre, id_cuatrimestre_grupo_fk, id_cohorte_grupo_fk, en_practicas = 0 } = req.body;
 
     // Validaciones
     if (!nombre || !id_cuatrimestre_grupo_fk || !id_cohorte_grupo_fk) {
@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const result: any = await query(
       `INSERT INTO grupos (nombre, id_cuatrimestre_grupo_fk, id_cohorte_grupo_fk, estado_practicas)
        VALUES (?, ?, ?, ?)`,
-      [nombre, id_cuatrimestre_grupo_fk, id_cohorte_grupo_fk, estado_practicas]
+      [nombre, id_cuatrimestre_grupo_fk, id_cohorte_grupo_fk, en_practicas]
     );
 
     res.status(201).json({

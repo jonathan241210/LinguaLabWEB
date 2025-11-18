@@ -15,17 +15,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         g.estado_practicas,
         c.nombre AS cuatrimestre,
         coh.etiqueta AS cohorte,
+        p.nombre AS programa,
         CONCAT(u.nombre, ' ', u.primer_apellido) AS docente,
         d.id_docente,
         COUNT(DISTINCT ag.id_alumno_ag_fk) AS total_alumnos
       FROM grupos g
       LEFT JOIN cuatrimestres c ON g.id_cuatrimestre_grupo_fk = c.id_cuatrimestre
       LEFT JOIN cohortes coh ON g.id_cohorte_grupo_fk = coh.id_cohorte
+      LEFT JOIN programas_educativos p ON coh.id_programa_cohorte_fk = p.id_programa
       LEFT JOIN docente_grupo dg ON g.id_grupo = dg.id_grupo_dg_fk AND dg.activo = 1
       LEFT JOIN docentes d ON dg.id_docente_dg_fk = d.id_docente
       LEFT JOIN usuarios u ON d.id_usuario_docente_fk = u.id_usuario
       LEFT JOIN alumno_grupo ag ON g.id_grupo = ag.id_grupo_ag_fk AND ag.activo = 1
-      GROUP BY g.id_grupo, g.nombre, g.estado_practicas, c.nombre, coh.etiqueta, docente, d.id_docente
+      GROUP BY g.id_grupo, g.nombre, g.estado_practicas, c.nombre, coh.etiqueta, p.nombre, docente, d.id_docente
       ORDER BY c.nombre ASC, g.nombre ASC`
     );
 

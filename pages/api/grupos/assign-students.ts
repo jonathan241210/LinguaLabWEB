@@ -35,12 +35,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Insertar múltiples alumnos en alumno_grupo
-    const values = id_alumnos.map((id_alumno) => [id_grupo, id_alumno]);
-    const placeholders = values.map(() => '(?, ?)').join(', ');
+    const values = id_alumnos.map((id_alumno) => [id_grupo, id_alumno, new Date()]);
+    const placeholders = values.map(() => '(?, ?, ?)').join(', ');
     const flatValues = values.flat();
 
     await query(
-      `INSERT INTO alumno_grupo (id_grupo_ag_fk, id_alumno_ag_fk, fecha_ingreso, activo)
+      `INSERT INTO alumno_grupo (id_grupo_ag_fk, id_alumno_ag_fk, fecha_ingreso)
        VALUES ${placeholders}`,
       flatValues
     );

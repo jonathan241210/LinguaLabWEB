@@ -50,6 +50,7 @@ interface DashboardLayoutProps {
   successModal?: {
     isOpen: boolean;
     message: string;
+    type?: 'success' | 'error' | 'warning' | 'info'; // Tipo de mensaje
     onClose: () => void;
   };
 }
@@ -88,6 +89,21 @@ export default function DashboardLayout({
     }
     return true;
   });
+
+  // Control local render of success modal for exit animations
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successExiting, setSuccessExiting] = useState(false);
+
+  useEffect(() => {
+    if (successModal?.isOpen) {
+      setShowSuccessModal(true);
+      setSuccessExiting(false);
+    } else if (showSuccessModal) {
+      setSuccessExiting(true);
+      const t = setTimeout(() => setShowSuccessModal(false), 240);
+      return () => clearTimeout(t);
+    }
+  }, [successModal?.isOpen]);
 
   // Menú por defecto según el rol
   const defaultMenuItems = {
@@ -299,11 +315,75 @@ export default function DashboardLayout({
           position: relative;
           z-index: 1;
         }
+
+        /* Modal animations */
+        @keyframes llw-fade-in { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes llw-fade-out { from { opacity: 1 } to { opacity: 0 } }
+        @keyframes llw-pop-in { 0% { opacity: 0; transform: translateY(12px) scale(0.96) } 60% { opacity: 1; transform: translateY(0) scale(1.02) } 100% { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes llw-pop-out { from { opacity: 1; transform: translateY(0) scale(1) } to { opacity: 0; transform: translateY(8px) scale(0.94) } }
+        .llw-overlay-enter { animation: llw-fade-in 220ms ease-out forwards }
+        .llw-overlay-exit { animation: llw-fade-out 220ms ease-in forwards }
+        .llw-card-enter { animation: llw-pop-in 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards; will-change: transform, opacity }
+        .llw-card-exit { animation: llw-pop-out 240ms ease-in forwards; will-change: transform, opacity }
+
+        /* Estilos responsivos */
+        @media (max-width: 768px) {
+          .llw-sidebar {
+            position: fixed !important;
+            left: ${sidebarCollapsed ? '-300px' : '0'} !important;
+            width: 280px !important;
+            z-index: 1000 !important;
+            height: 100vh !important;
+            box-shadow: ${sidebarCollapsed ? 'none' : '4px 0 20px rgba(0,0,0,0.3)'} !important;
+          }
+          .llw-hamburger-btn {
+            display: flex !important;
+          }
+          .llw-header {
+            padding: 12px 16px !important;
+          }
+          .llw-content {
+            padding: 16px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .llw-header h1 {
+            font-size: 20px !important;
+          }
+          .llw-content {
+            padding: 12px !important;
+          }
+        }
+      `}</style>
+
+      {/* Overlay para cerrar sidebar en móvil */}
+      {!sidebarCollapsed && (
+        <div
+          style={{
+            display: 'none',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999,
+          }}
+          className="llw-sidebar-overlay"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .llw-sidebar-overlay {
+            display: block !important;
+          }
+        }
       `}</style>
 
       {/* Sidebar */}
       <div 
-        className="animate-slide-in-left"
+        className="animate-slide-in-left llw-sidebar"
         style={{
           width: sidebarCollapsed ? '72px' : '280px',
           backgroundColor: '#2c1f4a',
@@ -313,7 +393,7 @@ export default function DashboardLayout({
           flexDirection: 'column',
           gap: '32px',
           boxShadow: 'var(--shadow-lg)',
-          transition: 'width 0.2s ease',
+          transition: 'width 0.2s ease, left 0.3s ease',
         }}
         onMouseEnter={() => {
           setSidebarCollapsed(false);
@@ -355,13 +435,10 @@ export default function DashboardLayout({
               key={item.id}
               onClick={() => {
                 onMenuItemClick?.(item.id);
-                // Navegación específica para ciertos items
-                if (item.id === 'groups' && roleType === 'administrador') {
-                  router.push('/dashboard/admin/grupos');
-                } else if (item.id === 'home') {
-                  if (roleType === 'administrador') router.push('/dashboard/admin');
-                  else if (roleType === 'docente') router.push('/dashboard/docente');
-                  else if (roleType === 'alumno') router.push('/dashboard/alumnos');
+                // Navegación usando mapa centralizado
+                const path = getPathForItem(item.id);
+                if (path) {
+                  router.push(path);
                 }
               }}
               className={`menu-item ${isItemActive(item.id) ? 'active' : ''}`}
@@ -467,18 +544,42 @@ export default function DashboardLayout({
       <div className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Top Bar */}
         <div 
+          className="llw-header"
           style={{
             backgroundColor: 'var(--color-white)',
             padding: '16px 32px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '20px',
+            gap: '12px',
             boxShadow: 'var(--shadow-sm)',
             borderBottom: '1px solid #e5e7eb',
+            flexWrap: 'wrap',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Botón hamburguesa para móvil */}
+            <button
+              className="llw-hamburger-btn"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              style={{
+                display: 'none',
+                background: 'var(--color-primary-green)',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '20px',
+                cursor: 'pointer',
+                padding: '8px 12px',
+                color: 'white',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                transition: 'all 0.2s',
+              }}
+            >
+              ☰
+            </button>
             <button
               style={{
                 background: 'none',
@@ -553,7 +654,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Contenido - Aquí va el children */}
-        <div style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
+        <div style={{ flex: 1, padding: 'clamp(16px, 4vw, 32px)', overflowY: 'auto' }}>
           {children}
         </div>
       </div>
@@ -572,69 +673,171 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* Modal de éxito general */}
-      {successModal && successModal.isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1001,
-          }}
-          onClick={successModal.onClose}
-        >
+      {/* Animaciones CSS para modales */}
+      <style jsx>{`
+        @keyframes llw-message-fade-in { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes llw-message-fade-out { from { opacity: 1 } to { opacity: 0 } }
+        @keyframes llw-message-bounce-in {
+          0% { opacity: 0; transform: translateY(-20px) scale(0.9); }
+          50% { opacity: 0.8; transform: translateY(5px) scale(1.05); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes llw-message-slide-out {
+          0% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-10px) scale(0.95); }
+        }
+        .llw-message-overlay-enter { animation: llw-message-fade-in 200ms ease-out forwards; }
+        .llw-message-overlay-exit { animation: llw-message-fade-out 200ms ease-in forwards; }
+        .llw-message-card-enter { animation: llw-message-bounce-in 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .llw-message-card-exit { animation: llw-message-slide-out 250ms ease-in forwards; }
+
+        @media (max-width: 768px) {
+          .llw-message-card {
+            width: 95% !important;
+            max-width: none !important;
+            padding: 24px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .llw-message-card {
+            padding: 20px !important;
+          }
+          .llw-message-card h3 {
+            font-size: 18px !important;
+          }
+        }
+      `}</style>
+
+      {/* Modal universal - Diseño profesional reutilizable para todos los tipos de mensajes */}
+      {successModal && showSuccessModal && (() => {
+        const type = successModal.type || 'success';
+        const config = {
+          success: {
+            bgColor: 'rgba(46,168,83,0.15)',
+            iconColor: '#2ea853',
+            icon: <path d="M20 6L9 17l-5-5" />,
+            buttonColor: 'var(--color-primary-green)',
+            buttonShadow: 'rgba(46,168,83,0.4)',
+            subtitle: 'The data has been saved successfully.',
+          },
+          error: {
+            bgColor: 'rgba(239,68,68,0.15)',
+            iconColor: '#ef4444',
+            icon: <path d="M18 6L6 18M6 6l12 12" />,
+            buttonColor: '#ef4444',
+            buttonShadow: 'rgba(239,68,68,0.4)',
+            subtitle: 'Please check the information and try again.',
+          },
+          warning: {
+            bgColor: 'rgba(245,158,11,0.15)',
+            iconColor: '#f59e0b',
+            icon: <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />,
+            buttonColor: '#f59e0b',
+            buttonShadow: 'rgba(245,158,11,0.4)',
+            subtitle: 'Review the information before continuing.',
+          },
+          info: {
+            bgColor: 'rgba(59,130,246,0.15)',
+            iconColor: '#3b82f6',
+            icon: <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
+            buttonColor: '#3b82f6',
+            buttonShadow: 'rgba(59,130,246,0.4)',
+            subtitle: 'This is important information for you.',
+          },
+        }[type];
+
+        return (
           <div
+            className={`llw-overlay-${successExiting ? 'exit' : 'enter'}`}
             style={{
-              backgroundColor: 'var(--color-dark-blue)',
-              borderRadius: '20px',
-              padding: '32px',
-              width: '90%',
-              maxWidth: '420px',
-              position: 'relative',
-              textAlign: 'center',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1001,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => {
+              setSuccessExiting(true);
+              setTimeout(() => {
+                successModal.onClose();
+                setShowSuccessModal(false);
+                setSuccessExiting(false);
+              }, 250);
+            }}
           >
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(46,168,83,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2ea853" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </div>
-            </div>
-            <h3 style={{ color: 'white', margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700 }}>{successModal.message}</h3>
-            <p style={{ color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '13px' }}>Los datos se han guardado correctamente.</p>
-            <button
-              onClick={successModal.onClose}
+            <div
+              className={`llw-card-${successExiting ? 'exit' : 'enter'}`}
               style={{
-                marginTop: '16px',
-                padding: '10px 20px',
-                backgroundColor: 'var(--color-primary-green)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
+                backgroundColor: 'var(--color-dark-blue)',
+                borderRadius: '20px',
+                padding: '40px 32px',
+                width: '90%',
+                maxWidth: '420px',
+                position: 'relative',
+                textAlign: 'center',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              Aceptar
-            </button>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                <div style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  backgroundColor: config.bgColor,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={config.iconColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    {config.icon}
+                  </svg>
+                </div>
+              </div>
+              <h3 style={{ color: 'white', margin: '0 0 12px 0', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.5px' }}>{successModal.message}</h3>
+              <p style={{ color: 'rgba(255,255,255,0.75)', margin: '0 0 24px 0', fontSize: '14px', lineHeight: '1.6' }}>{config.subtitle}</p>
+              <button
+                onClick={() => {
+                  setSuccessExiting(true);
+                  setTimeout(() => {
+                    successModal.onClose();
+                    setShowSuccessModal(false);
+                    setSuccessExiting(false);
+                  }, 240);
+                }}
+                style={{
+                  padding: '12px 32px',
+                  backgroundColor: config.buttonColor,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  width: '100%',
+                  maxWidth: '200px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = `0 6px 20px ${config.buttonShadow}`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                OK
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

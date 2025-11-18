@@ -26,6 +26,9 @@ export default async function handler(
       correo,
       contrasena,
       rol,
+      id_programa_alumno_fk,
+      id_nivel_alumno_fk,
+      en_practicas,
     } = req.body;
 
     if (!nombre || !primer_apellido || !matricula || !correo || !contrasena) {
@@ -50,11 +53,24 @@ export default async function handler(
     );
     const userId = (userResult as any).insertId;
 
-    // Insertar alumno SIN programa ni nivel (se asignarán al crear grupo)
-    const studentResult = await query(
-      'INSERT INTO alumnos (id_usuario_alumno_fk, matricula) VALUES (?, ?)',
-      [userId, matricula]
-    );
+    // Insertar alumno con programa, nivel y estado de prácticas si existe la columna; si no, fallback
+    let studentResult: any;
+    try {
+      studentResult = await query(
+        'INSERT INTO alumnos (id_usuario_alumno_fk, matricula, id_programa_alumno_fk, id_nivel_alumno_fk, en_practicas) VALUES (?, ?, ?, ?, ?)',
+        [userId, matricula, id_programa_alumno_fk || null, id_nivel_alumno_fk || null, en_practicas || 0]
+      );
+    } catch (e: any) {
+      if (e?.code === 'ER_BAD_FIELD_ERROR') {
+        // Fallback sin la columna en_practicas
+        studentResult = await query(
+          'INSERT INTO alumnos (id_usuario_alumno_fk, matricula, id_programa_alumno_fk, id_nivel_alumno_fk) VALUES (?, ?, ?, ?)',
+          [userId, matricula, id_programa_alumno_fk || null, id_nivel_alumno_fk || null]
+        );
+      } else {
+        throw e;
+      }
+    }
 
     return res.status(201).json({
       success: true,

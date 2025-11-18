@@ -7,21 +7,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Obtener alumnos que NO tienen grupo activo
+    // Obtener TODOS los alumnos con su estado (disponible, asignado, inactivo)
     const alumnos = await query(
       `SELECT 
         a.id_alumno,
         a.matricula,
         CONCAT(u.nombre, ' ', u.primer_apellido, ' ', IFNULL(u.segundo_apellido, '')) AS nombre_completo,
         IFNULL(p.nombre, 'Sin asignar') AS programa,
-        IFNULL(n.nombre, 'Sin asignar') AS nivel
+        p.nombre AS programa_completo,
+        IFNULL(n.nombre, 'Sin asignar') AS nivel,
+        u.activo AS usuario_activo,
+        CASE 
+          WHEN u.activo = 0 THEN 'inactivo'
+          WHEN ag.id_alumno_grupo IS NOT NULL THEN 'asignado'
+          ELSE 'disponible'
+        END AS estado,
+        g.nombre AS grupo_actual
       FROM alumnos a
       JOIN usuarios u ON a.id_usuario_alumno_fk = u.id_usuario
       LEFT JOIN programas_educativos p ON a.id_programa_alumno_fk = p.id_programa
       LEFT JOIN niveles_educativos n ON a.id_nivel_alumno_fk = n.id_nivel
       LEFT JOIN alumno_grupo ag ON a.id_alumno = ag.id_alumno_ag_fk AND ag.activo = 1
-      WHERE ag.id_alumno_grupo IS NULL AND u.activo = 1
-      ORDER BY u.primer_apellido, u.nombre`
+      LEFT JOIN grupos g ON ag.id_grupo_ag_fk = g.id_grupo
+      ORDER BY u.activo DESC, u.primer_apellido, u.nombre`
     );
 
     res.status(200).json({

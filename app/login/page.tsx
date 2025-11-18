@@ -101,7 +101,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-white)', display: 'flex', overflow: 'hidden', position: 'relative' }}>
+    <div className="llw-login-container" style={{ minHeight: '100vh', backgroundColor: 'var(--color-white)', display: 'flex', overflow: 'hidden', position: 'relative' }}>
       <style jsx>{`
         @keyframes slideInLeft {
           from {
@@ -194,12 +194,75 @@ export default function LoginPage() {
         input:focus::placeholder {
           color: #9ca3af;
         }
+
+        /* Estilos responsivos */
+        @media (max-width: 1024px) {
+          .llw-login-left {
+            width: 40% !important;
+            padding: 32px !important;
+          }
+          .llw-login-right {
+            width: 60% !important;
+            padding: 32px 48px !important;
+          }
+          .llw-login-title {
+            font-size: 44px !important;
+          }
+          .llw-login-logo {
+            width: 120px !important;
+            height: 120px !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .llw-login-container {
+            flex-direction: column !important;
+          }
+          .llw-login-left, .llw-login-right {
+            width: 100% !important;
+            padding: 32px !important;
+          }
+          .llw-login-left {
+            padding: 24px !important;
+          }
+          .llw-login-title {
+            font-size: 36px !important;
+          }
+          .llw-login-subtitle {
+            font-size: 16px !important;
+          }
+          .llw-login-logo {
+            width: 100px !important;
+            height: 100px !important;
+            margin-bottom: 32px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .llw-login-left {
+            padding: 20px !important;
+          }
+          .llw-login-right {
+            padding: 24px 20px !important;
+          }
+          .llw-login-title {
+            font-size: 32px !important;
+          }
+          .llw-login-subtitle {
+            font-size: 14px !important;
+          }
+          .llw-login-logo {
+            width: 80px !important;
+            height: 80px !important;
+          }
+          .llw-login-form-title {
+            font-size: 32px !important;
+          }
+        }
       `}</style>
 
       {/* Sección izquierda - Blanca con logo y texto */}
-      <div style={{ width: '42%', backgroundColor: 'var(--color-white)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '48px', position: 'relative' }} className="animate-fade-in">
+      <div className="llw-login-left animate-fade-in" style={{ width: '42%', backgroundColor: 'var(--color-white)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '48px', position: 'relative' }}>
         {/* Logo */}
-        <div style={{ marginBottom: '64px' }} className="animate-bounce-in">
+        <div className="llw-login-logo animate-bounce-in" style={{ marginBottom: '64px' }}>
           <div 
             style={{
               width: '160px',
@@ -224,19 +287,19 @@ export default function LoginPage() {
 
         {/* Texto */}
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-slide-in-left">
-          <h1 style={{ fontSize: '56px', fontWeight: 'bold', color: 'var(--color-dark-blue)', margin: 0, lineHeight: 1.2 }}>LinguaLab</h1>
-          <p style={{ fontSize: '20px', color: 'var(--color-gray-dark)', margin: 0, fontWeight: 500 }}>
+          <h1 className="llw-login-title" style={{ fontSize: '56px', fontWeight: 'bold', color: 'var(--color-dark-blue)', margin: 0, lineHeight: 1.2 }}>LinguaLab</h1>
+          <p className="llw-login-subtitle" style={{ fontSize: '20px', color: 'var(--color-gray-dark)', margin: 0, fontWeight: 500 }}>
             Plataforma de gestión educativa
           </p>
         </div>
       </div>
 
       {/* Sección derecha - Azul oscuro con formulario */}
-      <div style={{ width: '58%', background: 'linear-gradient(135deg, var(--color-dark-blue) 0%, var(--color-dark-blue-darker) 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '48px 64px', position: 'relative' }} className="animate-slide-in-right">
+      <div className="llw-login-right animate-slide-in-right" style={{ width: '58%', background: 'linear-gradient(135deg, var(--color-dark-blue) 0%, var(--color-dark-blue-darker) 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '48px 64px', position: 'relative' }}>
         <div style={{ width: '100%', maxWidth: '448px', display: 'flex', flexDirection: 'column', gap: '40px' }}>
           {/* Encabezado */}
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h2 style={{ fontSize: '48px', fontWeight: 'bold', color: 'var(--color-white)', margin: 0, lineHeight: 1.2 }}>Welcome!</h2>
+            <h2 className="llw-login-form-title" style={{ fontSize: '48px', fontWeight: 'bold', color: 'var(--color-white)', margin: 0, lineHeight: 1.2 }}>Welcome!</h2>
             <p style={{ fontSize: '20px', color: '#d1d5db', margin: 0, fontWeight: 300 }}>Inicia sesión en LinguaLab</p>
           </div>
 

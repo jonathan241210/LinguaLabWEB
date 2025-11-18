@@ -10,7 +10,7 @@ interface SelectOption {
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'password' | 'number' | 'tel' | 'select';
+  type: 'text' | 'email' | 'password' | 'number' | 'tel' | 'select' | 'checkbox';
   placeholder: string;
   required?: boolean;
   autoFillFrom?: string; // Campo del cual auto-rellenar
@@ -38,7 +38,7 @@ export default function FormModal({
   fields,
   onSubmit,
   submitButtonLabel = 'Add',
-  successMessage = 'Registro exitoso',
+  successMessage = 'Registration successful',
   onSuccess,
 }: FormModalProps) {
   const [formData, setFormData] = React.useState<Record<string, string>>({});
@@ -46,6 +46,21 @@ export default function FormModal({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [visiblePasswords, setVisiblePasswords] = React.useState<Record<string, boolean>>({});
   const [selectOptions, setSelectOptions] = React.useState<Record<string, SelectOption[]>>({});
+  const [renderOpen, setRenderOpen] = React.useState(false);
+  const [isExiting, setIsExiting] = React.useState(false);
+
+  // Controlar montaje para permitir animación de salida
+  React.useEffect(() => {
+    if (isOpen) {
+      setRenderOpen(true);
+      setIsExiting(false);
+    } else if (renderOpen) {
+      // Si el padre cierra externamente, reproducir salida y desmontar al finalizar
+      setIsExiting(true);
+      const t = setTimeout(() => setRenderOpen(false), 260);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen]);
 
   // Cargar opciones de selects desde API
   React.useEffect(() => {
@@ -114,12 +129,18 @@ export default function FormModal({
       await onSubmit(formData);
       setFormData({});
       setShowConfirmation(false);
-      onClose();
+      // Cerrar con animación
+      requestClose();
       if (onSuccess) {
         onSuccess();
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      // Volver al formulario para que el usuario pueda corregir
+      setShowConfirmation(false);
+      setIsSubmitting(false);
+      // El error ya fue mostrado por el handler padre
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
@@ -129,10 +150,21 @@ export default function FormModal({
     setShowConfirmation(false);
   };
 
-  if (!isOpen) return null;
+  const requestClose = () => {
+    setIsExiting(true);
+    const t = setTimeout(() => {
+      onClose();
+      setRenderOpen(false);
+      setIsExiting(false);
+    }, 250);
+    return () => clearTimeout(t);
+  };
+
+  if (!renderOpen) return null;
 
   return (
     <div
+      className={`llw-modal-overlay ${isExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`}
       style={{
         position: 'fixed',
         top: 0,
@@ -145,11 +177,12 @@ export default function FormModal({
         justifyContent: 'center',
         zIndex: 1000,
       }}
-      onClick={onClose}
+      onClick={requestClose}
     >
       {/* Modal de formulario */}
       {!showConfirmation && (
         <div
+          className={`llw-modal-card ${isExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
           style={{
             backgroundColor: 'var(--color-dark-blue)',
             borderRadius: '20px',
@@ -164,7 +197,7 @@ export default function FormModal({
         >
           {/* Botón cerrar */}
           <button
-            onClick={onClose}
+            onClick={requestClose}
             style={{
               position: 'absolute',
               top: '16px',
@@ -180,6 +213,23 @@ export default function FormModal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'transform 0.25s, box-shadow 0.25s, background-color 0.25s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)';
+              e.currentTarget.style.boxShadow = '0 6px 14px rgba(0,0,0,0.35)';
+              e.currentTarget.style.backgroundColor = '#ff4f4f';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.backgroundColor = '#ff3b3b';
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)';
             }}
           >
             ✕
@@ -223,6 +273,7 @@ export default function FormModal({
                       value={formData[field.name] || ''}
                       onChange={handleInputChange}
                       readOnly={field.autoFillFrom ? true : false}
+                      className="llw-field-animate"
                       style={{
                         padding: '12px 44px 12px 16px',
                         borderRadius: '12px',
@@ -235,11 +286,12 @@ export default function FormModal({
                         opacity: 1,
                         width: '100%',
                         boxSizing: 'border-box',
+                        transition: 'all 0.2s ease',
                       }}
                     />
                     <button
                       type="button"
-                      aria-label={visiblePasswords[field.name] ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      aria-label={visiblePasswords[field.name] ? 'Hide password' : 'Show password'}
                       onClick={() => setVisiblePasswords(prev => ({ ...prev, [field.name]: !prev[field.name] }))}
                       style={{
                         position: 'absolute',
@@ -277,6 +329,7 @@ export default function FormModal({
                     required={field.required}
                     value={formData[field.name] || ''}
                     onChange={handleInputChange}
+                    className="llw-field-animate"
                     style={{
                       padding: '12px 16px',
                       borderRadius: '12px',
@@ -288,15 +341,38 @@ export default function FormModal({
                       width: '100%',
                       boxSizing: 'border-box',
                       cursor: 'pointer',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    <option value="">Seleccionar...</option>
+                    <option value="">Select...</option>
                     {(selectOptions[field.name] || []).map(option => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
                     ))}
                   </select>
+                ) : field.type === 'checkbox' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', backgroundColor: 'white', borderRadius: '12px', border: '2px solid var(--color-dark-blue)' }}>
+                    <input
+                      type="checkbox"
+                      name={field.name}
+                      checked={formData[field.name] === '1' || formData[field.name] === 'true'}
+                      onChange={(e) => {
+                        handleInputChange({
+                          target: {
+                            name: field.name,
+                            value: e.target.checked ? '1' : '0'
+                          }
+                        } as any);
+                      }}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        cursor: 'pointer',
+                      }}
+                    />
+                    <span style={{ fontSize: '14px', color: '#333', userSelect: 'none' }}>{field.placeholder}</span>
+                  </div>
                 ) : (
                   <input
                     type={field.type}
@@ -306,6 +382,7 @@ export default function FormModal({
                     value={formData[field.name] || ''}
                     onChange={handleInputChange}
                     readOnly={field.autoFillFrom ? true : false}
+                    className="llw-field-animate"
                     style={{
                       padding: '12px 16px',
                       borderRadius: '12px',
@@ -316,6 +393,7 @@ export default function FormModal({
                       color: '#333',
                       cursor: field.autoFillFrom ? 'not-allowed' : 'text',
                       opacity: 1,
+                      transition: 'all 0.2s ease',
                     }}
                   />
                 )}
@@ -326,7 +404,7 @@ export default function FormModal({
                     marginTop: '4px',
                     fontStyle: 'italic',
                   }}>
-                    {field.infoMessage || 'El usuario debe cambiar su contraseña en su perfil'}
+                    {field.infoMessage || 'User must change password in their profile'}
                   </div>
                 )}
               </div>
@@ -365,6 +443,7 @@ export default function FormModal({
       {/* Modal de confirmación */}
       {showConfirmation && (
         <div
+          className={`llw-modal-card ${isExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
           style={{
             backgroundColor: 'var(--color-dark-blue)',
             borderRadius: '20px',
@@ -393,6 +472,23 @@ export default function FormModal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'transform 0.25s, box-shadow 0.25s, background-color 0.25s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)';
+              e.currentTarget.style.boxShadow = '0 6px 14px rgba(0,0,0,0.35)';
+              e.currentTarget.style.backgroundColor = '#ff4f4f';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.backgroundColor = '#ff3b3b';
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)';
             }}
           >
             ✕
@@ -408,7 +504,7 @@ export default function FormModal({
               paddingRight: '40px',
             }}
           >
-            ¿Confirmar datos?
+            Confirm data?
           </h2>
 
           {/* Resumen de datos */}
@@ -432,7 +528,7 @@ export default function FormModal({
                 );
                 displayValue = selectedOption?.label || formData[field.name];
               } else if (field.type === 'password') {
-                displayValue = `••••••••${formData['matricula'] && formData[field.name] === formData['matricula'] ? ' (matrícula)' : ''}`;
+                displayValue = `••••••••${formData['matricula'] && formData[field.name] === formData['matricula'] ? ' (Student ID)' : ''}`;
               }
 
               return (
@@ -482,7 +578,7 @@ export default function FormModal({
                 e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
               }}
             >
-              Editar
+              Edit
             </button>
             <button
               onClick={handleConfirm}
@@ -511,11 +607,58 @@ export default function FormModal({
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              {isSubmitting ? 'Guardando...' : 'Confirmar'}
+              {isSubmitting ? 'Saving...' : 'Confirm'}
             </button>
           </div>
         </div>
       )}
+      {/* Animations */}
+      <style jsx>{`
+        @keyframes llw-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes llw-fade-out {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        @keyframes llw-pop-in {
+          0% { opacity: 0; transform: translateY(15px) scale(0.94) rotate(1deg); }
+          50% { opacity: 0.8; transform: translateY(-2px) scale(1.03) rotate(-0.5deg); }
+          100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+        }
+        @keyframes llw-pop-out {
+          0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+          100% { opacity: 0; transform: translateY(10px) scale(0.92) rotate(1deg); }
+        }
+        @keyframes llw-field-focus {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.02); }
+          100% { transform: scale(1); }
+        }
+        .llw-modal-overlay-enter { animation: llw-fade-in 200ms ease-out forwards; }
+        .llw-modal-overlay-exit { animation: llw-fade-out 200ms ease-in forwards; }
+        .llw-modal-card-enter { animation: llw-pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; will-change: transform, opacity; }
+        .llw-modal-card-exit { animation: llw-pop-out 250ms ease-in forwards; will-change: transform, opacity; }
+        .llw-field-animate:focus { animation: llw-field-focus 200ms ease-out; }
+
+        @media (max-width: 768px) {
+          .llw-modal-card {
+            width: 95% !important;
+            max-width: none !important;
+            padding: 24px !important;
+            max-height: 95vh !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .llw-modal-card {
+            padding: 20px !important;
+          }
+          .llw-modal-card h2 {
+            font-size: 18px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
