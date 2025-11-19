@@ -115,7 +115,8 @@ export default function LaboratoriosPage() {
       
       if (vocabRes.ok) {
         const data = await vocabRes.json()
-        setVocabularios(data.vocabulario || [])
+        console.log('Vocabularios response:', data) // Debug log
+        setVocabularios(data.vocabularios || [])
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -126,9 +127,10 @@ export default function LaboratoriosPage() {
 
   const fetchUnidades = async (vocabId: number) => {
     try {
-      const res = await fetch(`/api/vocabulario/unidades?id_vocabulario=${vocabId}`)
+      const res = await fetch(`/api/vocabulario/get-unidades?id_vocabulario=${vocabId}`)
       if (res.ok) {
         const data = await res.json()
+        console.log('Unidades response:', data) // Debug log
         setUnidades(data.unidades || [])
       }
     } catch (error) {
@@ -308,6 +310,10 @@ export default function LaboratoriosPage() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
         .llw-modal-overlay-enter { animation: llw-fade-in 200ms ease-out forwards; }
         .llw-modal-overlay-exit { animation: llw-fade-out 200ms ease-in forwards; }
         .llw-modal-card-enter { animation: llw-pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; will-change: transform, opacity; }
@@ -355,7 +361,7 @@ export default function LaboratoriosPage() {
               e.currentTarget.style.boxShadow = 'none'
             }}
           >
-            <span style={{ fontSize: '20px' }}>➕</span>
+            <span style={{ fontSize: '20px' }}></span>
             Create Laboratory
           </button>
         </div>
@@ -705,7 +711,7 @@ export default function LaboratoriosPage() {
               </button>
 
               <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 'bold', margin: '0 0 24px 0', paddingRight: '40px' }}>
-                ⚙️ CREATE A LAB
+                CREATE A LAB
               </h2>
 
               {/* Paso 1: Seleccionar plantilla */}
@@ -809,83 +815,248 @@ export default function LaboratoriosPage() {
 
               {/* Paso 3: Seleccionar vocabulario */}
               {selectedPlantilla && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>
+                <div style={{ marginBottom: '48px' }}>
+                  <h3 style={{ color: 'white', fontSize: '19px', fontWeight: '700', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '12px', letterSpacing: '-0.5px' }}>
+                    <span style={{ fontSize: '24px' }}></span>
                     Step 3: Choose Vocabulary
                   </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {vocabularios.map((vocab) => (
-                      <div
-                        key={vocab.id_vocabulario}
-                        onClick={() => handleVocabularioSelect(vocab.id_vocabulario)}
-                        style={{
-                          background: selectedVocabulario === vocab.id_vocabulario
-                            ? 'var(--color-primary-green)'
-                            : 'rgba(255,255,255,0.1)',
-                          borderRadius: '12px',
-                          padding: '16px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          border: selectedVocabulario === vocab.id_vocabulario
-                            ? '2px solid white'
-                            : '2px solid transparent'
-                        }}
-                      >
-                        <div style={{ color: 'white', fontWeight: '600', marginBottom: '4px' }}>
-                          {vocab.archivo_original}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+                    {vocabularios.map((vocab) => {
+                      const isSelected = selectedVocabulario === vocab.id_vocabulario
+                      return (
+                        <div
+                          key={vocab.id_vocabulario}
+                          onClick={() => handleVocabularioSelect(vocab.id_vocabulario)}
+                          style={{
+                            background: isSelected
+                              ? 'linear-gradient(135deg, var(--color-primary-green) 0%, var(--color-primary-green-dark) 100%)'
+                              : 'rgba(255,255,255,0.06)',
+                            borderRadius: '16px',
+                            padding: '24px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            border: isSelected
+                              ? '2px solid rgba(255,255,255,0.3)'
+                              : '2px solid rgba(255,255,255,0.08)',
+                            boxShadow: isSelected 
+                              ? '0 8px 24px rgba(46,168,83,0.35), 0 0 0 1px rgba(255,255,255,0.1) inset' 
+                              : '0 2px 8px rgba(0,0,0,0.1)',
+                            transform: isSelected ? 'translateY(-4px) scale(1.02)' : 'scale(1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
+                              e.currentTarget.style.transform = 'translateY(-3px) scale(1.01)'
+                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                              e.currentTarget.style.transform = 'scale(1)'
+                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'
+                            }
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '16px' }}>
+                            <div style={{
+                              width: '48px',
+                              height: '48px',
+                              background: isSelected 
+                                ? 'rgba(255,255,255,0.2)' 
+                                : 'linear-gradient(135deg, rgba(46,168,83,0.25), rgba(46,168,83,0.15))',
+                              borderRadius: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '24px',
+                              flexShrink: 0,
+                              border: isSelected ? '1px solid rgba(255,255,255,0.3)' : 'none'
+                            }}>📖</div>
+                            {isSelected && (
+                              <div style={{ 
+                                marginLeft: 'auto', 
+                                width: '32px',
+                                height: '32px',
+                                background: 'rgba(255,255,255,0.25)',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white', 
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                border: '2px solid rgba(255,255,255,0.4)'
+                              }}>✓</div>
+                            )}
+                          </div>
+                          <div style={{ 
+                            color: 'white', 
+                            fontWeight: '700', 
+                            fontSize: '16px', 
+                            marginBottom: '12px',
+                            lineHeight: '1.4'
+                          }}>
+                            {vocab.archivo_original}
+                          </div>
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              background: isSelected 
+                                ? 'rgba(255,255,255,0.2)' 
+                                : 'rgba(255,255,255,0.12)',
+                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              border: isSelected ? '1px solid rgba(255,255,255,0.3)' : 'none'
+                            }}>
+                              ✨ {vocab.nivel}
+                            </span>
+                            <span style={{
+                              background: isSelected 
+                                ? 'rgba(255,255,255,0.2)' 
+                                : 'rgba(255,255,255,0.12)',
+                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              border: isSelected ? '1px solid rgba(255,255,255,0.3)' : 'none'
+                            }}>
+                              {vocab.contenido.length} words
+                            </span>
+                          </div>
                         </div>
-                        <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>
-                          Level: {vocab.nivel} • {vocab.contenido.length} words
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Paso 4: Seleccionar unidades */}
               {selectedVocabulario && unidades.length > 0 && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>
+                <div style={{ marginBottom: '48px' }}>
+                  <h3 style={{ color: 'white', fontSize: '19px', fontWeight: '700', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '12px', letterSpacing: '-0.5px' }}>
+                    <span style={{ fontSize: '24px' }}></span>
                     Step 4: Select Units
                   </h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                    {unidades.map((unidad) => (
-                      <div
-                        key={unidad.id_unidad}
-                        onClick={() => toggleUnidad(unidad.id_unidad)}
-                        style={{
-                          background: selectedUnidades.includes(unidad.id_unidad)
-                            ? 'var(--color-primary-green)'
-                            : 'rgba(255,255,255,0.1)',
-                          borderRadius: '12px',
-                          padding: '12px 16px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          border: selectedUnidades.includes(unidad.id_unidad)
-                            ? '2px solid white'
-                            : '2px solid rgba(255,255,255,0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedUnidades.includes(unidad.id_unidad)}
-                          onChange={() => {}}
-                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
-                        <div>
-                          <div style={{ color: 'white', fontWeight: '600', fontSize: '13px' }}>
-                            Unit {unidad.numero_unidad}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
+                    {unidades.map((unidad) => {
+                      const isSelected = selectedUnidades.includes(unidad.id_unidad)
+                      return (
+                        <div
+                          key={unidad.id_unidad}
+                          onClick={() => toggleUnidad(unidad.id_unidad)}
+                          style={{
+                            background: isSelected
+                              ? 'linear-gradient(135deg, var(--color-primary-green) 0%, var(--color-primary-green-dark) 100%)'
+                              : 'rgba(255,255,255,0.06)',
+                            borderRadius: '14px',
+                            padding: '20px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            border: isSelected
+                              ? '2px solid rgba(255,255,255,0.3)'
+                              : '2px solid rgba(255,255,255,0.08)',
+                            boxShadow: isSelected
+                              ? '0 6px 20px rgba(46,168,83,0.3)'
+                              : '0 2px 6px rgba(0,0,0,0.08)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '14px',
+                            minHeight: '110px',
+                            position: 'relative',
+                            overflow: 'hidden'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
+                              e.currentTarget.style.transform = 'translateY(-2px)'
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                              e.currentTarget.style.transform = 'translateY(0)'
+                              e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)'
+                            }
+                          }}
+                        >
+                          {/* Indicador visual superior para seleccionados */}
+                          {isSelected && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: '3px',
+                              background: 'linear-gradient(90deg, rgba(255,255,255,0.6), rgba(255,255,255,0.3), rgba(255,255,255,0.6))',
+                              backgroundSize: '200% 100%',
+                              animation: 'shimmer 2s ease-in-out infinite'
+                            }} />
+                          )}
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              border: isSelected ? '2px solid white' : '2px solid rgba(255,255,255,0.3)',
+                              background: isSelected ? 'white' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              transition: 'all 0.2s'
+                            }}>
+                              {isSelected && <span style={{ color: 'var(--color-primary-green)', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                            </div>
+                            <div style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              <div style={{
+                                background: isSelected 
+                                  ? 'rgba(255,255,255,0.2)' 
+                                  : 'linear-gradient(135deg, rgba(46,168,83,0.25), rgba(46,168,83,0.15))',
+                                color: 'white',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                border: isSelected ? '1px solid rgba(255,255,255,0.3)' : 'none',
+                                letterSpacing: '0.5px'
+                              }}>
+                                UNIT {unidad.numero_unidad}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
-                            {unidad.nombre_unidad} ({unidad.palabras_ids.length} words)
+                          
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              color: 'white', 
+                              fontWeight: '700', 
+                              fontSize: '15px', 
+                              lineHeight: '1.4',
+                              marginBottom: '6px'
+                            }}>
+                              {unidad.nombre_unidad}
+                            </div>
+                            <div style={{ 
+                              color: isSelected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)', 
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}>
+                              📝 {unidad.palabras_ids.length} words included
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -945,7 +1116,7 @@ export default function LaboratoriosPage() {
                     }}
                   >
                     <span>{showAdvancedConfig ? '▼' : '▶'}</span>
-                    <span>⚙️ Advanced Configuration</span>
+                    <span> Advanced Configuration</span>
                   </button>
                 </div>
               )}
@@ -960,7 +1131,7 @@ export default function LaboratoriosPage() {
                   borderRadius: '16px'
                 }}>
                   <h3 style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    ⚙️ Advanced Settings
+                     Advanced Settings
                   </h3>
 
                   {/* Experience & Scoring */}
@@ -1250,7 +1421,7 @@ export default function LaboratoriosPage() {
                       e.currentTarget.style.boxShadow = 'none'
                     }}
                   >
-                    ✅ Create Activity
+                     Create Activity
                   </button>
                 </div>
               )}

@@ -25,8 +25,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ORDER BY fecha_creacion DESC`
       )
 
+      // Parse contenido JSON for each vocabulario
+      const parsedVocabularios = (vocabularios as any[]).map(vocab => ({
+        ...vocab,
+        contenido: typeof vocab.contenido === 'string' ? JSON.parse(vocab.contenido) : vocab.contenido
+      }))
+
       res.status(200).json({
-        vocabularios: vocabularios
+        vocabularios: parsedVocabularios
       })
     } finally {
       connection.release()

@@ -31,8 +31,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         [id_vocabulario]
       )
 
+      // Parse palabras_ids JSON for each unit
+      const parsedUnidades = (unidades as any[]).map(unidad => ({
+        ...unidad,
+        palabras_ids: typeof unidad.palabras_ids === 'string' ? JSON.parse(unidad.palabras_ids) : unidad.palabras_ids
+      }))
+
       res.status(200).json({
-        unidades: unidades || []
+        unidades: parsedUnidades || []
       })
     } finally {
       connection.release()
