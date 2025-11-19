@@ -49,7 +49,26 @@ function GruposPage() {
   const [selectedGrupoForTeacher, setSelectedGrupoForTeacher] = useState<number | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<number | null>(null);
   const [expandedGrupo, setExpandedGrupo] = useState<number | null>(null);
-  const [grupoDetail, setGrupoDetail] = useState<any | null>(null);
+  const [grupoDetail, setGrupoDetail] = useState<any>(null);
+  
+  // New modal states
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailExiting, setDetailExiting] = useState(false);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [addStudentExiting, setAddStudentExiting] = useState(false);
+  const [selectedGrupoForAddStudent, setSelectedGrupoForAddStudent] = useState<number|null>(null);
+  const [selectedStudentToAdd, setSelectedStudentToAdd] = useState<number|null>(null);
+  const [showConfirmAssignTeacher, setShowConfirmAssignTeacher] = useState(false);
+  const [confirmAssignTeacherExiting, setConfirmAssignTeacherExiting] = useState(false);
+  const [showConfirmRemoveStudent, setShowConfirmRemoveStudent] = useState(false);
+  const [confirmRemoveStudentExiting, setConfirmRemoveStudentExiting] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState<{id_alumno: number, id_grupo: number, nombre: string} | null>(null);
+  const [showConfirmAddStudent, setShowConfirmAddStudent] = useState(false);
+  const [confirmAddStudentExiting, setConfirmAddStudentExiting] = useState(false);
+  const [showGroupStatsModal, setShowGroupStatsModal] = useState(false);
+  const [groupStatsExiting, setGroupStatsExiting] = useState(false);
+  const [selectedGroupStats, setSelectedGroupStats] = useState<any>(null);
+  const [loadingGroupStats, setLoadingGroupStats] = useState(false);
 
   const [newGrupo, setNewGrupo] = useState({
     nombre:'',
@@ -214,12 +233,185 @@ function GruposPage() {
   };
 
   const handleViewGrupo = async (id_grupo:number) => {
-    if (expandedGrupo === id_grupo) { setExpandedGrupo(null); setGrupoDetail(null); return; }
     try {
       const res = await fetch(`/api/grupos/detail?id=${id_grupo}`);
       const data = await res.json();
-      if (data.success) { setGrupoDetail(data.data); setExpandedGrupo(id_grupo); }
+      if (data.success) { 
+        setGrupoDetail(data.data); 
+        setExpandedGrupo(id_grupo);
+        setShowDetailModal(true);
+      }
     } catch (e) { console.error('Group detail error', e); }
+  };
+
+  const handleAssignTeacherClick = () => {
+    if (!selectedGrupoForTeacher || !selectedTeacher) {
+      setSuccessModal({
+        isOpen: true,
+        message: 'Please select both a group and a teacher',
+        type: 'warning',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      return;
+    }
+    setShowConfirmAssignTeacher(true);
+  };
+
+  const confirmAssignTeacherAction = async () => {
+    setConfirmAssignTeacherExiting(true);
+    setTimeout(() => {
+      setShowConfirmAssignTeacher(false);
+      setConfirmAssignTeacherExiting(false);
+    }, 220);
+    await handleAssignTeacher();
+  };
+
+  const handleAddStudentToGrupoClick = (id_grupo: number) => {
+    setSelectedGrupoForAddStudent(id_grupo);
+    setSelectedStudentToAdd(null);
+    setShowAddStudentModal(true);
+  };
+
+  const handleAddStudentConfirm = () => {
+    if (!selectedStudentToAdd || !selectedGrupoForAddStudent) return;
+    setShowAddStudentModal(false);
+    setAddStudentExiting(false);
+    setShowConfirmAddStudent(true);
+  };
+
+  const confirmAddStudentAction = async () => {
+    setConfirmAddStudentExiting(true);
+    setTimeout(() => {
+      setShowConfirmAddStudent(false);
+      setConfirmAddStudentExiting(false);
+    }, 220);
+
+    try {
+      const res = await fetch('/api/grupos/add-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_grupo: selectedGrupoForAddStudent, id_alumno: selectedStudentToAdd })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setSuccessModal({
+          isOpen: true,
+          message: data.message || 'Error: Unable to add student to group',
+          type: 'error',
+          onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+        });
+        return;
+      }
+      setSuccessModal({
+        isOpen: true,
+        message: 'Student successfully added to group',
+        type: 'success',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      setSelectedGrupoForAddStudent(null);
+      setSelectedStudentToAdd(null);
+      loadGrupos();
+      loadAlumnosDisponibles();
+      if (expandedGrupo === selectedGrupoForAddStudent && selectedGrupoForAddStudent !== null) {
+        handleViewGrupo(selectedGrupoForAddStudent);
+      }
+    } catch (e) {
+      console.error('Error adding student', e);
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error: Unable to add student to group',
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+    }
+  };
+
+  const handleRemoveStudentClick = (id_alumno: number, id_grupo: number, nombre: string) => {
+    setStudentToRemove({ id_alumno, id_grupo, nombre });
+    setShowConfirmRemoveStudent(true);
+  };
+
+  const confirmRemoveStudentAction = async () => {
+    if (!studentToRemove) return;
+    setConfirmRemoveStudentExiting(true);
+    setTimeout(() => {
+      setShowConfirmRemoveStudent(false);
+      setConfirmRemoveStudentExiting(false);
+    }, 220);
+
+    try {
+      const res = await fetch('/api/grupos/remove-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_grupo: studentToRemove.id_grupo, id_alumno: studentToRemove.id_alumno })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setSuccessModal({
+          isOpen: true,
+          message: data.message || 'Error: Unable to remove student from group',
+          type: 'error',
+          onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+        });
+        return;
+      }
+      setSuccessModal({
+        isOpen: true,
+        message: 'Student successfully removed from group',
+        type: 'success',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      setStudentToRemove(null);
+      loadGrupos();
+      loadAlumnosDisponibles();
+      if (expandedGrupo === studentToRemove.id_grupo) {
+        handleViewGrupo(studentToRemove.id_grupo);
+      }
+    } catch (e) {
+      console.error('Error removing student', e);
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error: Unable to remove student from group',
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+    }
+  };
+
+  const handleViewGroupStatistics = async (id_grupo: number) => {
+    setLoadingGroupStats(true);
+    setShowGroupStatsModal(true);
+    try {
+      const res = await fetch(`/api/grupos/statistics?id=${id_grupo}`);
+      const data = await res.json();
+      if (data.success) {
+        setSelectedGroupStats(data.data);
+      } else {
+        setSuccessModal({
+          isOpen: true,
+          message: data.message || 'Error loading group statistics',
+          type: 'error',
+          onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+        });
+        setShowGroupStatsModal(false);
+      }
+    } catch (e) {
+      console.error('Error loading group statistics', e);
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error loading group statistics',
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      setShowGroupStatsModal(false);
+    } finally {
+      setLoadingGroupStats(false);
+    }
+  };
+
+  const handleViewStudentFromGroup = (id_alumno: number) => {
+    // Redirect to students page with student ID
+    window.location.href = `/dashboard/admin/alumnos?student=${id_alumno}`;
   };
 
   const toggleStudentSelection = (id_alumno:number, estado?: string) => {
@@ -425,7 +617,7 @@ function GruposPage() {
                   {docentes.map(d => <option key={d.id_docente} value={d.id_docente}>{d.nombre_completo} ({d.matricula})</option>)}
                 </select>
               </div>
-              <button onClick={handleAssignTeacher} style={{ padding:'12px 24px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer', width:'100%', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(46,168,83,0.3)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>Assign Teacher</button>
+              <button onClick={handleAssignTeacherClick} style={{ padding:'12px 24px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer', width:'100%', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(46,168,83,0.3)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>Assign Teacher</button>
             </div>
           </div>
           {/* Existing Groups */}
@@ -439,7 +631,7 @@ function GruposPage() {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px,1fr))', gap:'16px' }}>
               {grupos.map(grupo => (
                 <div key={grupo.id_grupo}>
-                  <div style={{ border:'2px solid var(--color-dark-blue)', borderRadius:'10px', padding:'16px', backgroundColor:'white', cursor:'pointer', transition:'all 0.3s' }} onMouseOver={(e)=> e.currentTarget.style.transform='translateY(-4px)'} onMouseOut={(e)=> e.currentTarget.style.transform='translateY(0)'}>
+                  <div style={{ border:'2px solid var(--color-dark-blue)', borderRadius:'10px', padding:'16px', backgroundColor:'white', transition:'all 0.3s' }} onMouseOver={(e)=> e.currentTarget.style.transform='translateY(-4px)'} onMouseOut={(e)=> e.currentTarget.style.transform='translateY(0)'}>
                     <h3 style={{ fontSize:'18px', fontWeight:700, color:'var(--color-dark-blue)', marginBottom:'4px' }}>{grupo.cuatrimestre}{grupo.nombre}</h3>
                     <div style={{ padding:'8px 12px', backgroundColor:'rgba(46,168,83,0.1)', borderRadius:'8px', marginBottom:'12px', border:'2px solid var(--color-primary-green)' }}>
                       <p style={{ fontSize:'14px', fontWeight:700, color:'var(--color-primary-green)', margin:0 }}>📚 {grupo.programa || 'No program assigned'}</p>
@@ -447,23 +639,8 @@ function GruposPage() {
                     <p style={{ fontSize:'12px', color:'#888', margin:'4px 0', fontStyle:'italic' }}>Cohort: {grupo.cohorte}</p>
                     <p style={{ fontSize:'13px', color:'#666', margin:'4px 0' }}><strong>Students:</strong> {grupo.total_alumnos}</p>
                     <p style={{ fontSize:'13px', color:'#666', margin:'4px 0' }}><strong>Teacher:</strong> {grupo.docente || 'Not assigned'}</p>
-                    <button onClick={()=> handleViewGrupo(grupo.id_grupo)} style={{ marginTop:'12px', padding:'8px 16px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', width:'100%' }}>{expandedGrupo === grupo.id_grupo ? 'Hide ▲' : 'View Details ▼'}</button>
+                    <button onClick={()=> handleViewGrupo(grupo.id_grupo)} style={{ marginTop:'12px', padding:'8px 16px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', width:'100%' }}>View Details</button>
                   </div>
-                  {expandedGrupo === grupo.id_grupo && grupoDetail && (
-                    <div style={{ marginTop:'8px', border:'2px solid #e0e0e0', borderRadius:'8px', padding:'16px', backgroundColor:'#f9f9f9' }}>
-                      <h4 style={{ fontSize:'14px', fontWeight:600, marginBottom:'12px', color:'var(--color-dark-blue)' }}>Student List ({grupoDetail.alumnos.length})</h4>
-                      {grupoDetail.alumnos.length === 0 ? <p style={{ fontSize:'13px', color:'#999' }}>No assigned students</p> : (
-                        <div style={{ maxHeight:'200px', overflowY:'auto' }}>
-                          {grupoDetail.alumnos.map((alumno:any)=> (
-                            <div key={alumno.id_alumno} style={{ padding:'8px', borderBottom:'1px solid #ddd', fontSize:'12px', display:'flex', justifyContent:'space-between' }}>
-                              <span>{alumno.nombre_completo} ({alumno.matricula})</span>
-                              <span style={{ fontSize:'11px', color:'#666' }}>Average: {alumno.promedio_general ? Number(alumno.promedio_general).toFixed(2) : 'N/A'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -548,7 +725,7 @@ function GruposPage() {
           <div className={`llw-confirm-card ${confirmExiting ? 'llw-confirm-card-exit' : 'llw-confirm-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'20px', padding:'32px', width:'90%', maxWidth:'500px', maxHeight:'80vh', overflowY:'auto' }} onClick={(e)=> e.stopPropagation()}>
             <h2 style={{ color:'white', fontSize:'22px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}>⚠️ Confirm Group Creation</h2>
             <div style={{ backgroundColor:'rgba(255,255,255,0.1)', borderRadius:'12px', padding:'20px', marginBottom:'20px' }}>
-              <h3 style={{ color:'white', fontSize:'16px', fontWeight:600, marginBottom:'12px' }}>📊 Summary:</h3>
+              <h3 style={{ color:'white', fontSize:'16px', fontWeight:600, marginBottom:'12px' }}>Summary:</h3>
               <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}><strong>Group Number:</strong> {newGrupo.nombre}</p>
               <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}><strong>Current Semester:</strong> {cuatrimestres.find(c => c.id_cuatrimestre == newGrupo.id_cuatrimestre_grupo_fk)?.nombre || 'N/A'}</p>
               <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}><strong>Entry Year:</strong> {newGrupo.anio_ingreso}</p>
@@ -579,7 +756,7 @@ function GruposPage() {
                 ← Back
               </button>
               <button onClick={(e)=> { e.preventDefault(); handleCreateGrupo(e as any); }} style={{ flex:1, padding:'14px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'12px', fontSize:'15px', fontWeight:600, cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(46,168,83,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
-                ✅ Create Group
+                Create Group
               </button>
             </div>
           </div>
@@ -587,6 +764,402 @@ function GruposPage() {
       )}
       {showStudentModal && (
         <FormModal isOpen={showStudentModal} onClose={()=> setShowStudentModal(false)} title="Add Student" fields={studentFields} onSubmit={handleAddStudentModal} submitButtonLabel="Add" />
+      )}
+
+      {/* Detail Modal */}
+      {showDetailModal && grupoDetail && (
+        <div className={`llw-modal-overlay ${detailExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={()=> { setDetailExiting(true); setTimeout(()=>{ setShowDetailModal(false); setDetailExiting(false); setExpandedGrupo(null); }, 220); }}>
+          <div className={`llw-modal-card ${detailExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'20px', padding:'32px', width:'90%', maxWidth:'700px', maxHeight:'85vh', overflowY:'auto', position:'relative' }} onClick={(e)=> e.stopPropagation()}>
+            <button onClick={()=> { setDetailExiting(true); setTimeout(()=>{ setShowDetailModal(false); setDetailExiting(false); setExpandedGrupo(null); }, 220); }} style={{ position:'absolute', top:'16px', right:'16px', width:'40px', height:'40px', borderRadius:'50%', backgroundColor:'#ff3b3b', border:'none', color:'white', fontSize:'24px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.25s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='scale(1.05)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.3)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='none'; }}>✕</button>
+            
+            <h2 style={{ color:'white', fontSize:'24px', fontWeight:'bold', marginBottom:'20px', paddingRight:'50px' }}>Group Details</h2>
+            
+            {/* Group Info */}
+            <div style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'20px', border:'1px solid rgba(255,255,255,0.2)' }}>
+              <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'12px' }}>Group: {grupoDetail.grupo?.cuatrimestre}{grupoDetail.grupo?.nombre}</h3>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'6px 0' }}><strong>Program:</strong> {grupoDetail.grupo?.programa || 'Not assigned'}</p>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'6px 0' }}><strong>Cohort:</strong> {grupoDetail.grupo?.cohorte || 'N/A'}</p>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'6px 0' }}><strong>Teacher:</strong> {grupoDetail.grupo?.docente || 'Not assigned'}</p>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'6px 0' }}><strong>Total Students:</strong> {grupoDetail.alumnos?.length || 0}</p>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display:'flex', gap:'12px', marginBottom:'20px' }}>
+              <button onClick={()=> handleViewGroupStatistics(expandedGrupo!)} style={{ flex:1, padding:'12px 16px', backgroundColor:'#3b82f6', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer', transition:'all 0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(59,130,246,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                Group Statistics
+              </button>
+              <button onClick={()=> handleAddStudentToGrupoClick(expandedGrupo!)} style={{ flex:1, padding:'12px 16px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer', transition:'all 0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(46,168,83,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                Add Student
+              </button>
+            </div>
+
+            {/* Student List */}
+            <div style={{ backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'12px', padding:'16px' }}>
+              <h3 style={{ color:'white', fontSize:'16px', fontWeight:600, marginBottom:'12px' }}>👥 Students ({grupoDetail.alumnos?.length || 0})</h3>
+              {!grupoDetail.alumnos || grupoDetail.alumnos.length === 0 ? (
+                <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', textAlign:'center', padding:'20px' }}>No students assigned yet</p>
+              ) : (
+                <div style={{ maxHeight:'300px', overflowY:'auto' }}>
+                  {grupoDetail.alumnos.map((alumno:any, idx:number)=> (
+                    <div key={alumno.id_alumno} style={{ padding:'12px', borderBottom: idx < grupoDetail.alumnos.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none', display:'flex', justifyContent:'space-between', alignItems:'center', backgroundColor: idx % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent', borderRadius:'6px', marginBottom:'4px' }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{alumno.nombre_completo}</div>
+                        <div style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginTop:'2px' }}>
+                          ID: {alumno.matricula} • Average: {alumno.promedio_general ? Number(alumno.promedio_general).toFixed(2) : 'N/A'}
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', gap:'8px' }}>
+                        <button onClick={()=> handleViewStudentFromGroup(alumno.id_alumno)} style={{ padding:'8px 12px', backgroundColor:'#3b82f6', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:600, cursor:'pointer', transition:'all 0.2s', display:'flex', alignItems:'center', gap:'4px' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='scale(1.05)'; e.currentTarget.style.boxShadow='0 2px 8px rgba(59,130,246,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='none'; }}>
+                          Details
+                        </button>
+                        <button onClick={()=> handleRemoveStudentClick(alumno.id_alumno, expandedGrupo!, alumno.nombre_completo)} style={{ padding:'8px 12px', backgroundColor:'#ff3b3b', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:600, cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='scale(1.05)'; e.currentTarget.style.boxShadow='0 2px 8px rgba(255,59,59,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='none'; }}>
+                         Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group Statistics Modal */}
+      {showGroupStatsModal && selectedGroupStats && (
+        <div className={`llw-modal-overlay ${groupStatsExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1002 }} onClick={()=> { setGroupStatsExiting(true); setTimeout(()=>{ setShowGroupStatsModal(false); setGroupStatsExiting(false); }, 220); }}>
+          <div className={`llw-modal-card ${groupStatsExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'20px', padding:'32px', width:'95%', maxWidth:'900px', maxHeight:'90vh', overflowY:'auto', position:'relative' }} onClick={(e)=> e.stopPropagation()}>
+            <button onClick={()=> { setGroupStatsExiting(true); setTimeout(()=>{ setShowGroupStatsModal(false); setGroupStatsExiting(false); }, 220); }} style={{ position:'absolute', top:'16px', right:'16px', width:'40px', height:'40px', borderRadius:'50%', backgroundColor:'#ff3b3b', border:'none', color:'white', fontSize:'24px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.25s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='scale(1.05)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.3)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='none'; }}>✕</button>
+            
+            <h2 style={{ color:'white', fontSize:'28px', fontWeight:'bold', marginBottom:'24px', paddingRight:'50px', display:'flex', alignItems:'center', gap:'12px' }}>
+              Group Statistics
+            </h2>
+
+            {/* Group Basic Info */}
+            <div style={{ backgroundColor:'rgba(147,51,234,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(147,51,234,0.4)' }}>
+              <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'12px', display:'flex', alignItems:'center', gap:'8px' }}>
+                <span>👥</span> Group Information
+              </h3>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'12px' }}>
+                <div>
+                  <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginBottom:'4px' }}>Group Name</p>
+                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.cuatrimestre}{selectedGroupStats.groupInfo.nombre}</p>
+                </div>
+                <div>
+                  <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginBottom:'4px' }}>Program</p>
+                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.programa || 'N/A'}</p>
+                </div>
+                <div>
+                  <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginBottom:'4px' }}>Cohort</p>
+                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.cohorte || 'N/A'}</p>
+                </div>
+                <div>
+                  <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginBottom:'4px' }}>Teacher</p>
+                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.docente || 'Not assigned'}</p>
+                </div>
+                <div>
+                  <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginBottom:'4px' }}>Active Students</p>
+                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.total_alumnos}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Key Stats Grid */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'16px', marginBottom:'24px' }}>
+              <div style={{ backgroundColor:'rgba(249,115,22,0.15)', borderRadius:'12px', padding:'16px', border:'2px solid rgba(249,115,22,0.4)', textAlign:'center' }}>
+                <div style={{ fontSize:'32px', marginBottom:'8px' }}>📈</div>
+                <div style={{ color:'#fb923c', fontSize:'28px', fontWeight:'bold', marginBottom:'4px' }}>
+                  {selectedGroupStats.groupStats.average_score !== null ? Number(selectedGroupStats.groupStats.average_score).toFixed(1) : 'N/A'}
+                </div>
+                <div style={{ color:'rgba(255,255,255,0.8)', fontSize:'13px' }}>Average Score</div>
+              </div>
+              <div style={{ backgroundColor:'rgba(168,85,247,0.15)', borderRadius:'12px', padding:'16px', border:'2px solid rgba(168,85,247,0.4)', textAlign:'center' }}>
+                <div style={{ fontSize:'32px', marginBottom:'8px' }}>⭐</div>
+                <div style={{ color:'#c084fc', fontSize:'28px', fontWeight:'bold', marginBottom:'4px' }}>
+                  {selectedGroupStats.groupStats.total_xp !== null ? Number(selectedGroupStats.groupStats.total_xp).toLocaleString() : '0'}
+                </div>
+                <div style={{ color:'rgba(255,255,255,0.8)', fontSize:'13px' }}>Total XP</div>
+              </div>
+              <div style={{ backgroundColor:'rgba(59,130,246,0.15)', borderRadius:'12px', padding:'16px', border:'2px solid rgba(59,130,246,0.4)', textAlign:'center' }}>
+                <div style={{ fontSize:'32px', marginBottom:'8px' }}>📝</div>
+                <div style={{ color:'#60a5fa', fontSize:'28px', fontWeight:'bold', marginBottom:'4px' }}>
+                  {selectedGroupStats.groupStats.total_labs_completed}
+                </div>
+                <div style={{ color:'rgba(255,255,255,0.8)', fontSize:'13px' }}>Labs Completed</div>
+              </div>
+              <div style={{ backgroundColor:'rgba(34,197,94,0.15)', borderRadius:'12px', padding:'16px', border:'2px solid rgba(34,197,94,0.4)', textAlign:'center' }}>
+                <div style={{ fontSize:'32px', marginBottom:'8px' }}>✅</div>
+                <div style={{ color:'#4ade80', fontSize:'28px', fontWeight:'bold', marginBottom:'4px' }}>
+                  {selectedGroupStats.groupStats.total_labs_passed}
+                </div>
+                <div style={{ color:'rgba(255,255,255,0.8)', fontSize:'13px' }}>Labs Passed</div>
+              </div>
+            </div>
+
+            {/* Top Students */}
+            {selectedGroupStats.topStudents && selectedGroupStats.topStudents.length > 0 && (
+              <div style={{ backgroundColor:'rgba(34,197,94,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(34,197,94,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <span>🏆</span> Top Performing Students
+                </h3>
+                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                  {selectedGroupStats.topStudents.map((student:any, idx:number) => (
+                    <div key={idx} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px', backgroundColor:'rgba(255,255,255,0.08)', borderRadius:'8px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                        <div style={{ width:'32px', height:'32px', borderRadius:'50%', backgroundColor:'#4ade80', color:'#064e3b', fontWeight:'bold', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px' }}>
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <div style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{student.nombre_completo}</div>
+                          <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'12px' }}>Labs: {student.labs_completed}</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign:'right' }}>
+                        <div style={{ color:'#4ade80', fontSize:'18px', fontWeight:'bold' }}>{Number(student.average_score).toFixed(1)}</div>
+                        <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'11px' }}>avg score</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Students Needing Help */}
+            {selectedGroupStats.studentsNeedingHelp && selectedGroupStats.studentsNeedingHelp.length > 0 && (
+              <div style={{ backgroundColor:'rgba(239,68,68,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(239,68,68,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <span>⚠️</span> Students Needing Support
+                </h3>
+                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                  {selectedGroupStats.studentsNeedingHelp.map((student:any, idx:number) => (
+                    <div key={idx} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px', backgroundColor:'rgba(255,255,255,0.08)', borderRadius:'8px' }}>
+                      <div>
+                        <div style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{student.nombre_completo}</div>
+                        <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'12px' }}>
+                          {student.labs_completed === 0 ? 'No labs completed yet' : `Average: ${Number(student.average_score).toFixed(1)} • Labs: ${student.labs_completed}`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Progress by Game Type */}
+            {selectedGroupStats.progressByGameType && selectedGroupStats.progressByGameType.length > 0 && (
+              <div style={{ backgroundColor:'rgba(59,130,246,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(59,130,246,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <span>🎮</span> Progress by Game Type
+                </h3>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(250px, 1fr))', gap:'12px' }}>
+                  {selectedGroupStats.progressByGameType.map((game:any, idx:number) => (
+                    <div key={idx} style={{ padding:'14px', backgroundColor:'rgba(255,255,255,0.08)', borderRadius:'8px', display:'flex', alignItems:'center', gap:'12px' }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ color:'white', fontSize:'14px', fontWeight:600, marginBottom:'4px' }}>{game.tipo_juego}</div>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <span style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px' }}>{game.total_attempts} attempts</span>
+                          <span style={{ color:'#60a5fa', fontSize:'14px', fontWeight:'bold' }}>{Number(game.average_score).toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Score Distribution */}
+            {selectedGroupStats.scoreDistribution && selectedGroupStats.scoreDistribution.length > 0 && (
+              <div style={{ backgroundColor:'rgba(168,85,247,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(168,85,247,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  Score Distribution
+                </h3>
+                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                  {selectedGroupStats.scoreDistribution.map((range:any, idx:number) => (
+                    <div key={idx} style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                      <div style={{ width:'100px', color:'rgba(255,255,255,0.9)', fontSize:'13px', fontWeight:600 }}>{range.score_range}</div>
+                      <div style={{ flex:1, height:'24px', backgroundColor:'rgba(255,255,255,0.1)', borderRadius:'6px', overflow:'hidden', position:'relative' }}>
+                        <div style={{ height:'100%', backgroundColor:'#c084fc', width:`${(range.student_count / selectedGroupStats.groupInfo.total_alumnos) * 100}%`, transition:'width 0.5s', display:'flex', alignItems:'center', paddingLeft:'8px' }}>
+                          <span style={{ color:'white', fontSize:'12px', fontWeight:'bold' }}>{range.student_count}</span>
+                        </div>
+                      </div>
+                      <div style={{ width:'60px', textAlign:'right', color:'rgba(255,255,255,0.7)', fontSize:'12px' }}>
+                        {((range.student_count / selectedGroupStats.groupInfo.total_alumnos) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Monthly Progress */}
+            {selectedGroupStats.monthlyProgress && selectedGroupStats.monthlyProgress.length > 0 && (
+              <div style={{ backgroundColor:'rgba(249,115,22,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(249,115,22,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <span>📅</span> Monthly Progress Trend
+                </h3>
+                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                  {selectedGroupStats.monthlyProgress.map((month:any, idx:number) => (
+                    <div key={idx} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px', backgroundColor:'rgba(255,255,255,0.08)', borderRadius:'8px' }}>
+                      <div>
+                        <div style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{month.month_name}</div>
+                        <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'12px' }}>{month.labs_completed} labs completed</div>
+                      </div>
+                      <div style={{ textAlign:'right' }}>
+                        <div style={{ color:'#fb923c', fontSize:'18px', fontWeight:'bold' }}>{Number(month.average_score).toFixed(1)}</div>
+                        <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'11px' }}>avg score</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Assigned Labs */}
+            {selectedGroupStats.assignedLabs && selectedGroupStats.assignedLabs.length > 0 && (
+              <div style={{ backgroundColor:'rgba(20,184,166,0.15)', borderRadius:'12px', padding:'20px', border:'2px solid rgba(20,184,166,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <span>📋</span> Assigned Laboratories
+                </h3>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'12px', maxHeight:'300px', overflowY:'auto' }}>
+                  {selectedGroupStats.assignedLabs.map((lab:any, idx:number) => (
+                    <div key={idx} style={{ padding:'14px', backgroundColor:'rgba(255,255,255,0.08)', borderRadius:'8px' }}>
+                      <div style={{ color:'white', fontSize:'14px', fontWeight:600, marginBottom:'8px' }}>{lab.nombre_laboratorio}</div>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
+                        <span style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px' }}>Game Type:</span>
+                        <span style={{ color:'#5eead4', fontSize:'12px', fontWeight:600 }}>{lab.tipo_juego}</span>
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
+                        <span style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px' }}>Status:</span>
+                        <span style={{ color: lab.publicado === 1 ? '#4ade80' : '#fb923c', fontSize:'12px', fontWeight:600 }}>
+                          {lab.publicado === 1 ? 'Published' : 'Draft'}
+                        </span>
+                      </div>
+                      <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'11px', marginTop:'8px' }}>
+                        Assigned: {new Date(lab.fecha_asignacion).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {loadingGroupStats && (
+        <div style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1003 }}>
+          <div style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'16px', padding:'32px', textAlign:'center' }}>
+            <p style={{ color:'white', fontSize:'18px', fontWeight:600 }}>Loading group statistics...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Add Student to Group Modal */}
+      {showAddStudentModal && (
+        <div className={`llw-modal-overlay ${addStudentExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1001 }} onClick={()=> { setAddStudentExiting(true); setTimeout(()=>{ setShowAddStudentModal(false); setAddStudentExiting(false); }, 220); }}>
+          <div className={`llw-modal-card ${addStudentExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'20px', padding:'32px', width:'90%', maxWidth:'500px', maxHeight:'80vh', overflowY:'auto', position:'relative' }} onClick={(e)=> e.stopPropagation()}>
+            <button onClick={()=> { setAddStudentExiting(true); setTimeout(()=>{ setShowAddStudentModal(false); setAddStudentExiting(false); }, 220); }} style={{ position:'absolute', top:'16px', right:'16px', width:'40px', height:'40px', borderRadius:'50%', backgroundColor:'#ff3b3b', border:'none', color:'white', fontSize:'24px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.25s' }} onMouseEnter={(e)=> e.currentTarget.style.transform='scale(1.05)'} onMouseLeave={(e)=> e.currentTarget.style.transform='scale(1)'}>✕</button>
+            
+            <h2 style={{ color:'white', fontSize:'20px', fontWeight:'bold', marginBottom:'24px' }}> Add Student to Group</h2>
+            
+            <div style={{ marginBottom:'20px' }}>
+              <label style={{ color:'white', fontSize:'14px', fontWeight:600, display:'block', marginBottom:'8px' }}>Select Available Student</label>
+              <select value={selectedStudentToAdd || ''} onChange={(e)=> setSelectedStudentToAdd(Number(e.target.value))} style={{ width:'100%', padding:'12px', borderRadius:'10px', border:'2px solid rgba(255,255,255,0.3)', fontSize:'14px', backgroundColor:'white', color:'#333', cursor:'pointer' }}>
+                <option value=''>-- Select a student --</option>
+                {alumnosDisponibles.filter(a => a.estado === 'disponible').map(alumno => (
+                  <option key={alumno.id_alumno} value={alumno.id_alumno}>
+                    {alumno.nombre_completo} ({alumno.matricula}) {alumno.programa_completo && alumno.programa_completo !== 'Not assigned' ? `- ${alumno.programa_completo}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display:'flex', gap:'12px' }}>
+              <button onClick={()=> { setAddStudentExiting(true); setTimeout(()=>{ setShowAddStudentModal(false); setAddStudentExiting(false); }, 220); }} style={{ flex:1, padding:'12px', backgroundColor:'rgba(255,255,255,0.2)', color:'white', border:'2px solid white', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>Cancel</button>
+              <button onClick={handleAddStudentConfirm} disabled={!selectedStudentToAdd} style={{ flex:1, padding:'12px', backgroundColor: selectedStudentToAdd ? 'var(--color-primary-green)' : '#999', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor: selectedStudentToAdd ? 'pointer' : 'not-allowed', transition:'all 0.2s', opacity: selectedStudentToAdd ? 1 : 0.6 }} onMouseEnter={(e)=> { if(selectedStudentToAdd) { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(46,168,83,0.4)'; } }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Assign Teacher */}
+      {showConfirmAssignTeacher && (
+        <div className={`llw-confirm-overlay ${confirmAssignTeacherExiting ? 'llw-confirm-overlay-exit' : 'llw-confirm-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1002 }} onClick={()=> { setConfirmAssignTeacherExiting(true); setTimeout(()=>{ setShowConfirmAssignTeacher(false); setConfirmAssignTeacherExiting(false); }, 220); }}>
+          <div className={`llw-confirm-card ${confirmAssignTeacherExiting ? 'llw-confirm-card-exit' : 'llw-confirm-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'16px', padding:'28px', width:'90%', maxWidth:'450px' }} onClick={(e)=> e.stopPropagation()}>
+            <h2 style={{ color:'white', fontSize:'20px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}>👨‍🏫 Confirm Teacher Assignment</h2>
+            <div style={{ backgroundColor:'rgba(255,255,255,0.1)', borderRadius:'10px', padding:'16px', marginBottom:'20px' }}>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}>
+                <strong>Group:</strong> {grupos.find(g => g.id_grupo === selectedGrupoForTeacher)?.cuatrimestre}{grupos.find(g => g.id_grupo === selectedGrupoForTeacher)?.nombre} - {grupos.find(g => g.id_grupo === selectedGrupoForTeacher)?.programa}
+              </p>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}>
+                <strong>Teacher:</strong> {docentes.find(d => d.id_docente === selectedTeacher)?.nombre_completo}
+              </p>
+            </div>
+            <p style={{ color:'rgba(255,255,255,0.85)', fontSize:'14px', marginBottom:'20px', textAlign:'center' }}>
+              Are you sure you want to assign this teacher to this group?
+            </p>
+            <div style={{ display:'flex', gap:'12px' }}>
+              <button onClick={()=> { setConfirmAssignTeacherExiting(true); setTimeout(()=>{ setShowConfirmAssignTeacher(false); setConfirmAssignTeacherExiting(false); }, 220); }} style={{ flex:1, padding:'12px', backgroundColor:'rgba(255,255,255,0.2)', color:'white', border:'2px solid white', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>Cancel</button>
+              <button onClick={confirmAssignTeacherAction} style={{ flex:1, padding:'12px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(46,168,83,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Add Student */}
+      {showConfirmAddStudent && (
+        <div className={`llw-confirm-overlay ${confirmAddStudentExiting ? 'llw-confirm-overlay-exit' : 'llw-confirm-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1002 }} onClick={()=> { setConfirmAddStudentExiting(true); setTimeout(()=>{ setShowConfirmAddStudent(false); setConfirmAddStudentExiting(false); }, 220); }}>
+          <div className={`llw-confirm-card ${confirmAddStudentExiting ? 'llw-confirm-card-exit' : 'llw-confirm-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'16px', padding:'28px', width:'90%', maxWidth:'450px' }} onClick={(e)=> e.stopPropagation()}>
+            <h2 style={{ color:'white', fontSize:'20px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}>👤 Confirm Add Student</h2>
+            <div style={{ backgroundColor:'rgba(255,255,255,0.1)', borderRadius:'10px', padding:'16px', marginBottom:'20px' }}>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}>
+                <strong>Student:</strong> {alumnosDisponibles.find(a => a.id_alumno === selectedStudentToAdd)?.nombre_completo}
+              </p>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}>
+                <strong>Group:</strong> {grupos.find(g => g.id_grupo === selectedGrupoForAddStudent)?.cuatrimestre}{grupos.find(g => g.id_grupo === selectedGrupoForAddStudent)?.nombre}
+              </p>
+            </div>
+            <p style={{ color:'rgba(255,255,255,0.85)', fontSize:'14px', marginBottom:'20px', textAlign:'center' }}>
+              Are you sure you want to add this student to the group?
+            </p>
+            <div style={{ display:'flex', gap:'12px' }}>
+              <button onClick={()=> { setConfirmAddStudentExiting(true); setTimeout(()=>{ setShowConfirmAddStudent(false); setConfirmAddStudentExiting(false); }, 220); }} style={{ flex:1, padding:'12px', backgroundColor:'rgba(255,255,255,0.2)', color:'white', border:'2px solid white', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>Cancel</button>
+              <button onClick={confirmAddStudentAction} style={{ flex:1, padding:'12px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(46,168,83,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Remove Student */}
+      {showConfirmRemoveStudent && studentToRemove && (
+        <div className={`llw-confirm-overlay ${confirmRemoveStudentExiting ? 'llw-confirm-overlay-exit' : 'llw-confirm-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1002 }} onClick={()=> { setConfirmRemoveStudentExiting(true); setTimeout(()=>{ setShowConfirmRemoveStudent(false); setConfirmRemoveStudentExiting(false); setStudentToRemove(null); }, 220); }}>
+          <div className={`llw-confirm-card ${confirmRemoveStudentExiting ? 'llw-confirm-card-exit' : 'llw-confirm-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'16px', padding:'28px', width:'90%', maxWidth:'450px' }} onClick={(e)=> e.stopPropagation()}>
+            <h2 style={{ color:'white', fontSize:'20px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}>⚠️ Confirm Remove Student</h2>
+            <div style={{ backgroundColor:'rgba(255,59,59,0.15)', borderRadius:'10px', padding:'16px', marginBottom:'20px', border:'2px solid rgba(255,59,59,0.5)' }}>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}>
+                <strong>Student:</strong> {studentToRemove.nombre}
+              </p>
+              <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}>
+                <strong>Group:</strong> {grupos.find(g => g.id_grupo === studentToRemove.id_grupo)?.cuatrimestre}{grupos.find(g => g.id_grupo === studentToRemove.id_grupo)?.nombre}
+              </p>
+            </div>
+            <p style={{ color:'rgba(255,255,255,0.85)', fontSize:'14px', marginBottom:'20px', textAlign:'center' }}>
+              Are you sure you want to remove this student from the group?<br/>
+              <span style={{ fontSize:'12px', color:'rgba(255,255,255,0.7)' }}>This action can be reversed later.</span>
+            </p>
+            <div style={{ display:'flex', gap:'12px' }}>
+              <button onClick={()=> { setConfirmRemoveStudentExiting(true); setTimeout(()=>{ setShowConfirmRemoveStudent(false); setConfirmRemoveStudentExiting(false); setStudentToRemove(null); }, 220); }} style={{ flex:1, padding:'12px', backgroundColor:'rgba(255,255,255,0.2)', color:'white', border:'2px solid white', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>Cancel</button>
+              <button onClick={confirmRemoveStudentAction} style={{ flex:1, padding:'12px', backgroundColor:'#ff3b3b', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(255,59,59,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

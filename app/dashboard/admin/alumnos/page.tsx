@@ -43,6 +43,10 @@ function AlumnosPage() {
     currentActive: number;
     action: 'activate' | 'deactivate';
   } | null>(null);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [statsExiting, setStatsExiting] = useState(false);
+  const [selectedStudentStats, setSelectedStudentStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   const studentFields: any = [
     { name: 'nombre', label: 'Name(s)', type: 'text', required: true, placeholder: 'E.g.: Juan' },
@@ -65,6 +69,19 @@ function AlumnosPage() {
 
   useEffect(() => {
     loadAlumnos();
+    
+    // Check for student parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const studentIdParam = urlParams.get('student');
+    if (studentIdParam) {
+      const studentId = parseInt(studentIdParam, 10);
+      if (!isNaN(studentId)) {
+        // Wait a bit for alumnos to load, then open stats
+        setTimeout(() => {
+          handleViewStatistics(studentId);
+        }, 500);
+      }
+    }
   }, []);
 
   const handleAddStudentModal = async (formData: Record<string, string>) => {
@@ -167,6 +184,37 @@ function AlumnosPage() {
     await handleToggleStatus(confirmToggleModal.studentId, confirmToggleModal.currentActive);
   };
 
+  const handleViewStatistics = async (id_alumno: number) => {
+    setLoadingStats(true);
+    setShowStatsModal(true);
+    try {
+      const res = await fetch(`/api/alumnos/statistics?id=${id_alumno}`);
+      const data = await res.json();
+      if (data.success) {
+        setSelectedStudentStats(data.data);
+      } else {
+        setSuccessModal({
+          isOpen: true,
+          message: data.message || 'Error loading student statistics',
+          type: 'error',
+          onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+        });
+        setShowStatsModal(false);
+      }
+    } catch (e) {
+      console.error('Error loading statistics', e);
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error loading student statistics',
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      setShowStatsModal(false);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   const filteredAlumnos = alumnos.filter(a => {
     const term = searchTerm.toLowerCase();
     const matchSearch = a.matricula.toLowerCase().includes(term) || 
@@ -214,6 +262,10 @@ function AlumnosPage() {
           0% { opacity: 1; transform: translateY(0) scale(1); }
           100% { opacity: 0; transform: translateY(-8px) scale(0.96); }
         }
+        .llw-modal-overlay-enter { animation: llw-fade-in 220ms ease-out forwards; }
+        .llw-modal-overlay-exit { animation: llw-fade-out 220ms ease-in forwards; }
+        .llw-modal-card-enter { animation: llw-pop-in 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .llw-modal-card-exit { animation: llw-pop-out 240ms ease-in forwards; }
         .llw-confirm-overlay-enter { animation: llw-fade-in 180ms ease-out forwards; }
         .llw-confirm-overlay-exit { animation: llw-fade-out 180ms ease-in forwards; }
         .llw-confirm-card-enter { animation: llw-confirm-bounce-in 280ms cubic-bezier(0.25, 1.5, 0.5, 1) forwards; }
@@ -494,38 +546,69 @@ function AlumnosPage() {
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <button
-                      onClick={() => showToggleConfirmation(alumno)}
-                      disabled={isToggling === alumno.id_alumno}
-                      style={{
-                        width: '100%',
-                        padding: '10px 16px',
-                        backgroundColor: alumno.usuario_activo === 1 ? '#ef4444' : 'var(--color-primary-green)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: isToggling === alumno.id_alumno ? 'wait' : 'pointer',
-                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                        opacity: isToggling === alumno.id_alumno ? 0.6 : 1,
-                        transform: isToggling === alumno.id_alumno ? 'scale(0.98)' : 'scale(1)'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (isToggling !== alumno.id_alumno) {
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleViewStatistics(alumno.id_alumno)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 16px',
+                          backgroundColor: 'var(--color-dark-blue)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'translateY(-2px)';
                           e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                      {isToggling === alumno.id_alumno ? 'Processing...' : 
-                       alumno.usuario_activo === 1 ? 'Deactivate' : 'Activate'}
-                    </button>
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        Statistics
+                      </button>
+                      <button
+                        onClick={() => showToggleConfirmation(alumno)}
+                        disabled={isToggling === alumno.id_alumno}
+                        style={{
+                          flex: 1,
+                          padding: '10px 16px',
+                          backgroundColor: alumno.usuario_activo === 1 ? '#ef4444' : 'var(--color-primary-green)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: isToggling === alumno.id_alumno ? 'wait' : 'pointer',
+                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                          opacity: isToggling === alumno.id_alumno ? 0.6 : 1,
+                          transform: isToggling === alumno.id_alumno ? 'scale(0.98)' : 'scale(1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (isToggling !== alumno.id_alumno) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        {isToggling === alumno.id_alumno ? 'Processing...' : 
+                         alumno.usuario_activo === 1 ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -655,6 +738,230 @@ function AlumnosPage() {
                 {confirmToggleModal.action === 'deactivate' ? 'Deactivate' : 'Activate'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Student Statistics Modal */}
+      {showStatsModal && (
+        <div 
+          className={`llw-modal-overlay ${statsExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1002,
+            padding: '20px',
+            overflowY: 'auto'
+          }}
+          onClick={() => { 
+            setStatsExiting(true); 
+            setTimeout(() => { 
+              setShowStatsModal(false); 
+              setStatsExiting(false); 
+              setSelectedStudentStats(null);
+            }, 220); 
+          }}
+        >
+          <div
+            className={`llw-modal-card ${statsExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
+            style={{
+              backgroundColor: 'var(--color-dark-blue)',
+              borderRadius: '20px',
+              padding: '32px',
+              width: '95%',
+              maxWidth: '900px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button 
+              onClick={() => { 
+                setStatsExiting(true); 
+                setTimeout(() => { 
+                  setShowStatsModal(false); 
+                  setStatsExiting(false); 
+                  setSelectedStudentStats(null);
+                }, 220); 
+              }} 
+              style={{ 
+                position: 'absolute', 
+                top: '16px', 
+                right: '16px', 
+                width: '40px', 
+                height: '40px', 
+                borderRadius: '50%', 
+                backgroundColor: '#ff3b3b', 
+                border: 'none', 
+                color: 'white', 
+                fontSize: '24px', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                transition: 'all 0.25s' 
+              }} 
+              onMouseEnter={(e) => { 
+                e.currentTarget.style.transform = 'scale(1.05)'; 
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)'; 
+              }} 
+              onMouseLeave={(e) => { 
+                e.currentTarget.style.transform = 'scale(1)'; 
+                e.currentTarget.style.boxShadow = 'none'; 
+              }}
+            >✕</button>
+
+            {loadingStats ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'white' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
+                <p style={{ fontSize: '18px', fontWeight: 600 }}>Loading statistics...</p>
+              </div>
+            ) : selectedStudentStats ? (
+              <>
+                <h2 style={{ color: 'white', fontSize: '26px', fontWeight: 'bold', marginBottom: '24px', paddingRight: '50px' }}>
+                  📊 Student Statistics
+                </h2>
+
+                {/* Student Basic Info */}
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '20px', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                  <h3 style={{ color: 'white', fontSize: '20px', fontWeight: 700, marginBottom: '12px' }}>
+                    {selectedStudentStats.student.nombre_completo}
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>
+                    <div><strong>ID:</strong> {selectedStudentStats.student.matricula}</div>
+                    <div><strong>Email:</strong> {selectedStudentStats.student.correo}</div>
+                    <div><strong>Program:</strong> {selectedStudentStats.student.programa || 'N/A'}</div>
+                    <div><strong>Level:</strong> {selectedStudentStats.student.nivel_actual || 'N/A'}</div>
+                    <div><strong>Group:</strong> {selectedStudentStats.student.cuatrimestre}{selectedStudentStats.student.grupo_nombre || 'Not assigned'}</div>
+                    <div><strong>Days in Program:</strong> {selectedStudentStats.student.dias_en_programa || 0} days</div>
+                  </div>
+                </div>
+
+                {/* Key Statistics */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                  <div style={{ backgroundColor: 'rgba(46,168,83,0.15)', border: '2px solid var(--color-primary-green)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--color-primary-green)', marginBottom: '4px' }}>
+                      {selectedStudentStats.labStats.average_score ? Number(selectedStudentStats.labStats.average_score).toFixed(1) : '0.0'}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>Average Score</div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(251,191,36,0.15)', border: '2px solid #fbbf24', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fbbf24', marginBottom: '4px' }}>
+                      {selectedStudentStats.labStats.total_experience || 0}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>Total XP</div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(59,130,246,0.15)', border: '2px solid #3b82f6', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#3b82f6', marginBottom: '4px' }}>
+                      {selectedStudentStats.labStats.labs_completed || 0}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>Labs Completed</div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(168,85,247,0.15)', border: '2px solid #a855f7', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#a855f7', marginBottom: '4px' }}>
+                      {selectedStudentStats.labStats.labs_passed || 0}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>Labs Passed</div>
+                  </div>
+                </div>
+
+                {/* Progress by Game Type */}
+                {selectedStudentStats.progressByType && selectedStudentStats.progressByType.length > 0 && (
+                  <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+                    <h3 style={{ color: 'white', fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>📚 Progress by Game Type</h3>
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      {selectedStudentStats.progressByType.map((game: any, idx: number) => (
+                        <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ fontSize: '24px' }}>{game.icono}</span>
+                            <div>
+                              <div style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>{game.game_type}</div>
+                              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>
+                                {game.completed} completed • {game.experience_earned} XP
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ color: 'var(--color-primary-green)', fontWeight: 700, fontSize: '18px' }}>
+                              {game.avg_score ? Number(game.avg_score).toFixed(1) : '0.0'}
+                            </div>
+                            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px' }}>Avg Score</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Activity */}
+                {selectedStudentStats.recentLabs && selectedStudentStats.recentLabs.length > 0 && (
+                  <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+                    <h3 style={{ color: 'white', fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>🕐 Recent Activity</h3>
+                    <div style={{ display: 'grid', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
+                      {selectedStudentStats.recentLabs.map((lab: any, idx: number) => (
+                        <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '12px', borderLeft: `4px solid ${lab.aprobado ? '#2ea853' : '#ef4444'}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <div style={{ color: 'white', fontWeight: 600, fontSize: '13px' }}>{lab.icono} {lab.titulo}</div>
+                            <div style={{ color: lab.aprobado ? '#2ea853' : '#ef4444', fontWeight: 700, fontSize: '14px' }}>
+                              {lab.puntuacion}%
+                            </div>
+                          </div>
+                          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', display: 'flex', gap: '12px' }}>
+                            <span>⭐ {lab.experiencia_ganada} XP</span>
+                            <span>⏱️ {Math.floor(lab.tiempo_transcurrido / 60)}m {lab.tiempo_transcurrido % 60}s</span>
+                            <span>📅 {new Date(lab.fecha_completado).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Words & Weak Words */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+                  {selectedStudentStats.topWords && selectedStudentStats.topWords.length > 0 && (
+                    <div style={{ backgroundColor: 'rgba(46,168,83,0.1)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(46,168,83,0.3)' }}>
+                      <h3 style={{ color: 'var(--color-primary-green)', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>🏆 Best Words</h3>
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        {selectedStudentStats.topWords.map((word: any, idx: number) => (
+                          <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'white', fontSize: '13px', fontWeight: 600 }}>{word.palabra}</span>
+                            <span style={{ color: 'var(--color-primary-green)', fontSize: '12px', fontWeight: 700 }}>{word.tasa_exito}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedStudentStats.weakWords && selectedStudentStats.weakWords.length > 0 && (
+                    <div style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(239,68,68,0.3)' }}>
+                      <h3 style={{ color: '#ef4444', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>⚠️ Needs Practice</h3>
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        {selectedStudentStats.weakWords.map((word: any, idx: number) => (
+                          <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'white', fontSize: '13px', fontWeight: 600 }}>{word.palabra}</span>
+                            <span style={{ color: '#ef4444', fontSize: '12px', fontWeight: 700 }}>{word.tasa_exito}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'white' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+                <p style={{ fontSize: '18px', fontWeight: 600 }}>No statistics available</p>
+              </div>
+            )}
           </div>
         </div>
       )}

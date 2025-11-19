@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { query } from '@/lib/db';
-import { hashPassword } from '@/lib/hash';
+import { AlumnoController } from '@/src/controllers/AlumnoController';
 
 interface ResponseData {
   success?: boolean;
@@ -17,77 +16,11 @@ export default async function handler(
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  try {
-    const {
-      nombre,
-      primer_apellido,
-      segundo_apellido,
-      matricula,
-      correo,
-      contrasena,
-      rol,
-      id_programa_alumno_fk,
-      id_nivel_alumno_fk,
-      en_practicas,
-    } = req.body;
+  const result = await AlumnoController.registrar(req.body);
 
-    if (!nombre || !primer_apellido || !matricula || !correo || !contrasena) {
-      return res.status(400).json({ error: 'Faltan campos requeridos' });
-    }
-
-    const existingUser = await query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo]);
-    if (Array.isArray(existingUser) && existingUser.length > 0) {
-      return res.status(400).json({ error: 'El correo ya está registrado' });
-    }
-
-    const existingMatricula = await query('SELECT id_alumno FROM alumnos WHERE matricula = ?', [matricula]);
-    if (Array.isArray(existingMatricula) && existingMatricula.length > 0) {
-      return res.status(400).json({ error: 'La matrícula ya está registrada' });
-    }
-
-    const hashedPassword = hashPassword(contrasena);
-
-    const userResult = await query(
-      'INSERT INTO usuarios (nombre, primer_apellido, segundo_apellido, correo, contrasena, rol, activo) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [nombre, primer_apellido, segundo_apellido || null, correo, hashedPassword, rol || 'alumno', 1]
-    );
-    const userId = (userResult as any).insertId;
-
-    // Insertar alumno con programa, nivel y estado de prácticas si existe la columna; si no, fallback
-    let studentResult: any;
-    try {
-      studentResult = await query(
-        'INSERT INTO alumnos (id_usuario_alumno_fk, matricula, id_programa_alumno_fk, id_nivel_alumno_fk, en_practicas) VALUES (?, ?, ?, ?, ?)',
-        [userId, matricula, id_programa_alumno_fk || null, id_nivel_alumno_fk || null, en_practicas || 0]
-      );
-    } catch (e: any) {
-      if (e?.code === 'ER_BAD_FIELD_ERROR') {
-        // Fallback sin la columna en_practicas
-        studentResult = await query(
-          'INSERT INTO alumnos (id_usuario_alumno_fk, matricula, id_programa_alumno_fk, id_nivel_alumno_fk) VALUES (?, ?, ?, ?)',
-          [userId, matricula, id_programa_alumno_fk || null, id_nivel_alumno_fk || null]
-        );
-      } else {
-        throw e;
-      }
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: 'Alumno registrado exitosamente',
-      data: {
-        id_usuario: userId,
-        id_alumno: (studentResult as any).insertId,
-        nombre,
-        primer_apellido,
-        segundo_apellido,
-        matricula,
-        correo,
-        rol: 'alumno',
-      },
-    });
-  } catch (error) {
-    console.error('Error registrando alumno:', error);
-    return res.status(500).json({ error: 'Error interno del servidor' });
+  if (result.success) {
+    return res.status(201).json(result);
+  } else {
+    return res.status(result.error?.includes('ya está') ? 400 : 500).json(result);
   }
 }
