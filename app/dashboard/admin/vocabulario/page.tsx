@@ -27,6 +27,7 @@ interface VocabUnit {
 }
 
 export default function VocabularioPage() {
+  const [activeMenu, setActiveMenu] = useState('vocab')
   const [vocabularios, setVocabularios] = useState<VocabularioItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -51,6 +52,13 @@ export default function VocabularioPage() {
   const [expandedModalUnits, setExpandedModalUnits] = useState<Set<number>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{id: number, countdown: number, type: 'unit' | 'word', wordIndex?: number} | null>(null)
   const [allUnitsExpanded, setAllUnitsExpanded] = useState(false)
+  
+  // Estados de animación para modales
+  const [uploadExiting, setUploadExiting] = useState(false)
+  const [confirmExiting, setConfirmExiting] = useState(false)
+  const [unitsExiting, setUnitsExiting] = useState(false)
+  const [manualTextExiting, setManualTextExiting] = useState(false)
+  const [deleteExiting, setDeleteExiting] = useState(false)
 
   useEffect(() => {
     fetchVocabularios()
@@ -533,7 +541,1037 @@ export default function VocabularioPage() {
   }
 
   return (
-    <DashboardLayout title="Vocabulary Management" successModal={successModal}>
+    <>
+      <style jsx>{`
+        @keyframes llw-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes llw-fade-out {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        @keyframes llw-pop-in {
+          0% { opacity: 0; transform: translateY(15px) scale(0.94) rotate(1deg); }
+          50% { opacity: 0.8; transform: translateY(-2px) scale(1.03) rotate(-0.5deg); }
+          100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+        }
+        @keyframes llw-pop-out {
+          0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+          100% { opacity: 0; transform: translateY(10px) scale(0.92) rotate(1deg); }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .llw-modal-overlay-enter { animation: llw-fade-in 200ms ease-out forwards; }
+        .llw-modal-overlay-exit { animation: llw-fade-out 200ms ease-in forwards; }
+        .llw-modal-card-enter { animation: llw-pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; will-change: transform, opacity; }
+        .llw-modal-card-exit { animation: llw-pop-out 250ms ease-in forwards; will-change: transform, opacity; }
+
+        .vocabulario-container {
+          padding: 2rem;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+        }
+
+        h1 {
+          color: #2d3748;
+          font-size: 2rem;
+          margin: 0;
+        }
+
+        .upload-btn {
+          background: #10b981;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+
+        .upload-btn:hover {
+          background: #059669;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .no-data {
+          text-align: center;
+          color: #718096;
+          padding: 3rem;
+          font-size: 1.1rem;
+        }
+
+        .vocabulary-sections {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .level-section {
+          background: white;
+          border-radius: 12px;
+          padding: 1.5rem;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .level-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 3px solid #3b82f6;
+        }
+
+        .level-header h2 {
+          color: #1e40af;
+          font-size: 1.5rem;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .level-count {
+          background: #dbeafe;
+          color: #1e40af;
+          padding: 0.4rem 0.8rem;
+          border-radius: 20px;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+
+        .vocab-item {
+          background: #f9fafb;
+          border-radius: 8px;
+          padding: 1rem;
+          margin-bottom: 0.75rem;
+          border-left: 4px solid #10b981;
+          transition: all 0.2s;
+        }
+
+        .vocab-item:hover {
+          background: #f3f4f6;
+          transform: translateX(4px);
+        }
+
+        .vocab-item:last-child {
+          margin-bottom: 0;
+        }
+
+        .vocab-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .vocab-title {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex: 1;
+        }
+
+        .vocab-icon {
+          font-size: 1.2rem;
+        }
+
+        .vocab-name {
+          font-weight: 600;
+          color: #1f2937;
+          font-size: 1rem;
+        }
+
+        .vocab-date {
+          color: #9ca3af;
+          font-size: 0.85rem;
+        }
+
+        .vocab-actions {
+          display: flex;
+          gap: 0.5rem;
+          align-items: center;
+        }
+
+        .status-btn-sm {
+          border: none;
+          padding: 0.3rem 0.6rem;
+          border-radius: 4px;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 600;
+        }
+
+        .status-btn-sm.active {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .status-btn-sm.inactive {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .btn-organize-sm {
+          background: #3b82f6;
+          color: white;
+          border: none;
+          padding: 0.4rem 0.8rem;
+          border-radius: 6px;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 500;
+        }
+
+        .btn-organize-sm:hover {
+          background: #2563eb;
+        }
+
+        .vocab-stats {
+          margin-top: 0.75rem;
+          display: flex;
+          gap: 0.75rem;
+        }
+
+        .stat-badge {
+          background: #ede9fe;
+          color: #6b21a8;
+          padding: 0.3rem 0.6rem;
+          border-radius: 6px;
+          font-size: 0.85rem;
+        }
+
+        .stat-badge strong {
+          font-weight: 700;
+        }
+
+        .vocab-item-expanded {
+          background: white;
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+          border-left: 5px solid #3b82f6;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .units-display {
+          margin-top: 1.5rem;
+        }
+
+        .main-unit-display {
+          background: #f9fafb;
+          border-radius: 10px;
+          padding: 1.25rem;
+          margin-bottom: 1.5rem;
+          border-left: 4px solid #8b5cf6;
+        }
+
+        .main-unit-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 2px solid #e5e7eb;
+        }
+
+        .unit-badge {
+          background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+          color: white;
+          padding: 0.4rem 0.9rem;
+          border-radius: 20px;
+          font-weight: 700;
+          font-size: 0.85rem;
+          box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+        }
+
+        .unit-title {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .subunits-display {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .subunit-display {
+          background: white;
+          border-radius: 8px;
+          padding: 1rem;
+          border-left: 3px solid #3b82f6;
+        }
+
+        .subunit-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 0.75rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .subunit-badge {
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          color: white;
+          padding: 0.25rem 0.7rem;
+          border-radius: 15px;
+          font-weight: 700;
+          font-size: 0.8rem;
+          box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
+
+        .subunit-title {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: #374151;
+          flex: 1;
+        }
+
+        .word-count-badge {
+          background: #dbeafe;
+          color: #1e40af;
+          padding: 0.2rem 0.6rem;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+
+        .words-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 0.75rem;
+        }
+
+        .word-item-display {
+          background: #f8fafc;
+          padding: 0.65rem 0.85rem;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          border-left: 3px solid #10b981;
+          transition: all 0.2s;
+        }
+
+        .word-item-display:hover {
+          background: #f1f5f9;
+          transform: translateX(3px);
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .word-term {
+          font-weight: 700;
+          color: #0f172a;
+          font-size: 0.9rem;
+          min-width: fit-content;
+        }
+
+        .word-separator {
+          color: #10b981;
+          font-weight: 700;
+          font-size: 1rem;
+        }
+
+        .word-meaning {
+          color: #475569;
+          font-size: 0.85rem;
+          flex: 1;
+        }
+
+        .no-units-message {
+          text-align: center;
+          padding: 3rem 1rem;
+          color: #6b7280;
+          background: #f9fafb;
+          border-radius: 8px;
+          margin-top: 1rem;
+        }
+
+        .no-units-message p:first-child {
+          font-size: 1.1rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .vocabulario-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .vocab-card {
+          background: white;
+          border-radius: 12px;
+          padding: 1.5rem;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          transition: all 0.3s;
+        }
+
+        .vocab-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .vocab-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+
+        .nivel-badge {
+          background: #3b82f6;
+          color: white;
+          padding: 0.25rem 0.75rem;
+          border-radius: 20px;
+          font-weight: bold;
+          font-size: 0.9rem;
+        }
+
+        .status-btn {
+          border: none;
+          padding: 0.4rem 0.8rem;
+          border-radius: 6px;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .status-btn.active {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .status-btn.inactive {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .vocab-card h3 {
+          color: #1e40af;
+          margin: 0.5rem 0;
+          font-size: 1.1rem;
+          word-break: break-word;
+        }
+
+        .fecha {
+          color: #9ca3af;
+          font-size: 0.85rem;
+          margin: 0.5rem 0;
+        }
+
+        .vocab-preview {
+          margin-top: 1rem;
+          padding-top: 1rem;
+          border-top: 1px solid #e5e7eb;
+          color: #374151;
+          font-size: 0.9rem;
+        }
+
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          animation: fadeIn 0.2s;
+        }
+
+        .modal-content {
+          background: white;
+          border-radius: 16px;
+          padding: 2rem;
+          width: 90%;
+          max-width: 500px;
+          max-height: 90vh;
+          overflow-y: auto;
+          animation: slideUp 0.3s;
+        }
+
+        .modal-content-large {
+          background: white;
+          border-radius: 16px;
+          padding: 2rem;
+          width: 95%;
+          max-width: 1000px;
+          max-height: 90vh;
+          overflow-y: auto;
+          animation: slideUp 0.3s;
+        }
+
+        .processing-modal {
+          text-align: center;
+          padding: 3rem;
+        }
+
+        .spinner {
+          width: 60px;
+          height: 60px;
+          margin: 0 auto 2rem;
+          border: 5px solid #e5e7eb;
+          border-top: 5px solid #10b981;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+        }
+
+        .modal-content h2,
+        .modal-content-large h2 {
+          color: #1e293b;
+          margin: 0;
+        }
+
+        .btn-organize {
+          width: 100%;
+          background: #3b82f6;
+          color: white;
+          border: none;
+          padding: 0.5rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          margin-top: 1rem;
+          transition: all 0.2s;
+        }
+
+        .btn-organize:hover {
+          background: #2563eb;
+        }
+
+        .units-container {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 2rem;
+          margin: 1.5rem 0;
+        }
+
+        .create-unit-section,
+        .existing-units-section {
+          background: #f9fafb;
+          padding: 1.5rem;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+        }
+
+        .create-unit-section h3,
+        .existing-units-section h3 {
+          margin: 0 0 1rem 0;
+          color: #1e293b;
+          font-size: 1.1rem;
+        }
+
+        .words-selector {
+          margin: 1.5rem 0;
+        }
+
+        .words-selector label {
+          display: block;
+          margin-bottom: 0.75rem;
+          color: #374151;
+          font-weight: 500;
+        }
+
+        .words-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 0.5rem;
+          max-height: 300px;
+          overflow-y: auto;
+          border: 1px solid #d1d5db;
+          padding: 0.75rem;
+          border-radius: 8px;
+          background: white;
+        }
+
+        .word-checkbox {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.5rem;
+          padding: 0.5rem;
+          cursor: pointer;
+          border-radius: 6px;
+          transition: background 0.2s;
+        }
+
+        .word-checkbox:hover {
+          background: #f0f9ff;
+        }
+
+        .word-checkbox input {
+          margin-top: 0.25rem;
+          cursor: pointer;
+        }
+
+        .word-text {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          flex: 1;
+        }
+
+        .word-text strong {
+          color: #1f2937;
+          font-size: 0.95rem;
+        }
+
+        .word-text small {
+          color: #6b7280;
+          font-size: 0.85rem;
+        }
+
+        .units-list {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .unit-card {
+          background: white;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          padding: 1rem;
+        }
+
+        .unit-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 0.75rem;
+        }
+
+        .unit-header h4 {
+          margin: 0;
+          color: #1e40af;
+          font-size: 0.95rem;
+        }
+
+        .btn-delete-unit {
+          background: #fee2e2;
+          color: #991b1b;
+          border: none;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          transition: all 0.2s;
+        }
+
+        .btn-delete-unit:hover {
+          background: #fecaca;
+        }
+
+        .unit-words {
+          margin: 0 0 0.5rem 0;
+          color: #4b5563;
+          font-size: 0.9rem;
+        }
+
+        .unit-words-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+
+        .word-tag {
+          display: inline-block;
+          background: #dbeafe;
+          color: #0c4a6e;
+          padding: 0.25rem 0.75rem;
+          border-radius: 20px;
+          font-size: 0.8rem;
+        }
+
+        .btn-close {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 0;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+        }
+
+        .btn-close:hover {
+          color: #1f2937;
+        }
+
+        .btn-add {
+          background: #10b981;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          transition: all 0.2s;
+        }
+
+        .btn-add:hover {
+          background: #059669;
+        }
+
+        .vocab-table-container {
+          max-height: 400px;
+          overflow-y: auto;
+          margin: 1.5rem 0;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+        }
+
+        .vocab-table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        .vocab-table thead {
+          background: #f3f4f6;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+        }
+
+        .vocab-table th {
+          padding: 0.75rem;
+          text-align: left;
+          font-weight: 600;
+          color: #374151;
+          border-bottom: 2px solid #e5e7eb;
+        }
+
+        .vocab-table td {
+          padding: 0.5rem;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .vocab-table input,
+        .vocab-table select {
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          font-size: 0.9rem;
+        }
+
+        .vocab-table input:focus,
+        .vocab-table select:focus {
+          outline: none;
+          border-color: #3b82f6;
+        }
+
+        .btn-delete {
+          background: #fee2e2;
+          color: #991b1b;
+          border: none;
+          padding: 0.4rem 0.6rem;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 1rem;
+          transition: all 0.2s;
+        }
+
+        .btn-delete:hover {
+          background: #fecaca;
+        }
+
+        .vocab-summary {
+          padding: 1rem;
+          background: #f0fdf4;
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+          color: #166534;
+          text-align: center;
+        }
+
+        .form-group {
+          margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+          display: block;
+          color: #374151;
+          font-weight: 600;
+          margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group select {
+          width: 100%;
+          padding: 0.75rem;
+          border: 2px solid #e5e7eb;
+          border-radius: 8px;
+          font-size: 1rem;
+          transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+          outline: none;
+          border-color: #3b82f6;
+        }
+
+        .file-info {
+          margin-top: 0.5rem;
+          color: #10b981;
+          font-size: 0.9rem;
+        }
+
+        .summary-badges {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .badge {
+          padding: 0.4rem 0.9rem;
+          border-radius: 20px;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+
+        .badge-primary {
+          background: #dbeafe;
+          color: #1e40af;
+        }
+
+        .badge-success {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .unit-section {
+          border: 2px solid #e5e7eb;
+          border-radius: 8px;
+          margin-bottom: 1rem;
+          overflow: hidden;
+        }
+
+        .unit-info {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .unit-number {
+          background: #3b82f6;
+          color: white;
+          padding: 0.3rem 0.8rem;
+          border-radius: 6px;
+          font-weight: 700;
+          font-size: 0.85rem;
+        }
+
+        .unit-name {
+          font-weight: 600;
+          color: #1f2937;
+          font-size: 1rem;
+        }
+
+        .unit-meta {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .word-count {
+          color: #6b7280;
+          font-size: 0.9rem;
+        }
+
+        .expand-icon {
+          color: #9ca3af;
+          font-size: 0.8rem;
+        }
+
+        .unit-content {
+          background: #f9fafb;
+        }
+
+        .subunit-section {
+          padding: 1rem 1.5rem;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .subunit-section:last-child {
+          border-bottom: none;
+        }
+
+        .subunit-number {
+          background: #6366f1;
+          color: white;
+          padding: 0.25rem 0.6rem;
+          border-radius: 4px;
+          font-weight: 700;
+          font-size: 0.8rem;
+        }
+
+        .subunit-name {
+          font-weight: 600;
+          color: #374151;
+          font-size: 0.95rem;
+          flex: 1;
+        }
+
+        .subunit-count {
+          color: #9ca3af;
+          font-size: 0.85rem;
+        }
+
+        .unit-words {
+          padding: 1.25rem;
+          background: white;
+          border-top: 1px solid #e5e7eb;
+          max-height: 500px;
+          overflow-y: auto;
+        }
+
+        .word-card {
+          background: #f9fafb;
+          padding: 0.75rem;
+          border-radius: 6px;
+          border-left: 3px solid #10b981;
+        }
+
+        .more-indicator {
+          background: #e5e7eb;
+          border-left: 3px solid #9ca3af;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #6b7280;
+          font-weight: 500;
+        }
+
+        .modal-actions {
+          display: flex;
+          gap: 1rem;
+          margin-top: 2rem;
+        }
+
+        .btn-primary {
+          flex: 1;
+          background: #10b981;
+          color: white;
+          border: none;
+          padding: 0.875rem;
+          border-radius: 8px;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+          background: #059669;
+        }
+
+        .btn-primary:disabled {
+          background: #9ca3af;
+          cursor: not-allowed;
+        }
+
+        .btn-secondary {
+          flex: 1;
+          background: #f3f4f6;
+          color: #374151;
+          border: none;
+          padding: 0.875rem;
+          border-radius: 8px;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+          background: #e5e7eb;
+        }
+
+        @media (max-width: 1024px) {
+          .units-container {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .vocabulario-container {
+            padding: 1rem;
+          }
+
+          .header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch;
+          }
+
+          .vocabulario-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .modal-content,
+          .modal-content-large {
+            width: 95%;
+            padding: 1.5rem;
+          }
+
+          .modal-header {
+            flex-direction: column;
+            gap: 1rem;
+          }
+
+          .vocab-table-container {
+            max-height: 300px;
+          }
+
+          .vocab-table th,
+          .vocab-table td {
+            padding: 0.4rem;
+            font-size: 0.85rem;
+          }
+        }
+      `}</style>
+      <DashboardLayout title="Vocabulary Management" activeMenu={activeMenu} onMenuItemClick={setActiveMenu} roleType="administrador" successModal={successModal}>
       <div className="vocabulario-container">
         <div className="header">
           <h1>📚 Vocabulary Management</h1>
@@ -697,7 +1735,7 @@ export default function VocabularioPage() {
         )}
 
         {showUploadModal && (
-          <div className="llw-modal-overlay" style={{
+          <div className={`llw-modal-overlay ${uploadExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -708,8 +1746,14 @@ export default function VocabularioPage() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-          }} onClick={() => setShowUploadModal(false)}>
-            <div className="llw-modal-card" style={{
+          }} onClick={() => {
+            setUploadExiting(true)
+            setTimeout(() => {
+              setShowUploadModal(false)
+              setUploadExiting(false)
+            }, 250)
+          }}>
+            <div className={`llw-modal-card ${uploadExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} style={{
               backgroundColor: 'var(--color-dark-blue)',
               borderRadius: '20px',
               padding: '32px',
@@ -720,8 +1764,12 @@ export default function VocabularioPage() {
               {/* Botón cerrar X */}
               <button
                 onClick={() => {
-                  setShowUploadModal(false)
-                  setSelectedFile(null)
+                  setUploadExiting(true)
+                  setTimeout(() => {
+                    setShowUploadModal(false)
+                    setSelectedFile(null)
+                    setUploadExiting(false)
+                  }, 250)
                 }}
                 style={{
                   position: 'absolute',
@@ -749,6 +1797,12 @@ export default function VocabularioPage() {
                   e.currentTarget.style.transform = 'scale(1) rotate(0deg)'
                   e.currentTarget.style.boxShadow = 'none'
                   e.currentTarget.style.backgroundColor = '#ff3b3b'
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)'
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
                 }}
               >
                 ✕
@@ -879,7 +1933,7 @@ export default function VocabularioPage() {
         )}
 
         {showManualTextModal && (
-          <div className="llw-modal-overlay" style={{
+          <div className={`llw-modal-overlay ${manualTextExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -890,8 +1944,14 @@ export default function VocabularioPage() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-          }} onClick={() => setShowManualTextModal(false)}>
-            <div className="llw-modal-card" style={{
+          }} onClick={() => {
+            setManualTextExiting(true)
+            setTimeout(() => {
+              setShowManualTextModal(false)
+              setManualTextExiting(false)
+            }, 250)
+          }}>
+            <div className={`llw-modal-card ${manualTextExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} style={{
               backgroundColor: 'var(--color-dark-blue)',
               borderRadius: '20px',
               padding: '32px',
@@ -902,8 +1962,12 @@ export default function VocabularioPage() {
               {/* Botón cerrar X */}
               <button
                 onClick={() => {
-                  setShowManualTextModal(false)
-                  setManualText('')
+                  setManualTextExiting(true)
+                  setTimeout(() => {
+                    setShowManualTextModal(false)
+                    setManualText('')
+                    setManualTextExiting(false)
+                  }, 250)
                 }}
                 style={{
                   position: 'absolute',
@@ -931,6 +1995,12 @@ export default function VocabularioPage() {
                   e.currentTarget.style.transform = 'scale(1) rotate(0deg)'
                   e.currentTarget.style.boxShadow = 'none'
                   e.currentTarget.style.backgroundColor = '#ff3b3b'
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)'
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
                 }}
               >
                 ✕
@@ -1090,7 +2160,7 @@ export default function VocabularioPage() {
         )}
 
         {showConfirmModal && (
-          <div className="llw-modal-overlay" style={{
+          <div className={`llw-modal-overlay ${confirmExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -1101,8 +2171,14 @@ export default function VocabularioPage() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-          }} onClick={() => setShowConfirmModal(false)}>
-            <div className="llw-modal-card" style={{
+          }} onClick={() => {
+            setConfirmExiting(true)
+            setTimeout(() => {
+              setShowConfirmModal(false)
+              setConfirmExiting(false)
+            }, 250)
+          }}>
+            <div className={`llw-modal-card ${confirmExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} style={{
               backgroundColor: 'var(--color-dark-blue)',
               borderRadius: '20px',
               padding: '32px',
@@ -1115,10 +2191,14 @@ export default function VocabularioPage() {
               {/* Botón cerrar X */}
               <button
                 onClick={() => {
-                  setShowConfirmModal(false)
-                  setExtractedVocabulary([])
-                  setExtractedUnits([])
-                  setExpandedUnits(new Set())
+                  setConfirmExiting(true)
+                  setTimeout(() => {
+                    setShowConfirmModal(false)
+                    setExtractedVocabulary([])
+                    setExtractedUnits([])
+                    setExpandedUnits(new Set())
+                    setConfirmExiting(false)
+                  }, 250)
                 }}
                 style={{
                   position: 'absolute',
@@ -1147,6 +2227,12 @@ export default function VocabularioPage() {
                   e.currentTarget.style.transform = 'scale(1) rotate(0deg)'
                   e.currentTarget.style.boxShadow = 'none'
                   e.currentTarget.style.backgroundColor = '#ff3b3b'
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)'
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
                 }}
               >
                 ✕
@@ -1348,7 +2434,7 @@ export default function VocabularioPage() {
         )}
 
         {showUnitsModal && selectedVocab && (
-          <div className="llw-modal-overlay" style={{
+          <div className={`llw-modal-overlay ${unitsExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -1359,8 +2445,14 @@ export default function VocabularioPage() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-          }} onClick={() => setShowUnitsModal(false)}>
-            <div className="llw-modal-card" style={{
+          }} onClick={() => {
+            setUnitsExiting(true)
+            setTimeout(() => {
+              setShowUnitsModal(false)
+              setUnitsExiting(false)
+            }, 250)
+          }}>
+            <div className={`llw-modal-card ${unitsExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} style={{
               backgroundColor: 'var(--color-dark-blue)',
               borderRadius: '20px',
               padding: '32px',
@@ -1386,7 +2478,13 @@ export default function VocabularioPage() {
 
               {/* Botón cerrar X - estilo FormModal */}
               <button
-                onClick={() => setShowUnitsModal(false)}
+                onClick={() => {
+                  setUnitsExiting(true)
+                  setTimeout(() => {
+                    setShowUnitsModal(false)
+                    setUnitsExiting(false)
+                  }, 250)
+                }}
                 style={{
                   position: 'absolute',
                   top: '16px',
@@ -1577,7 +2675,7 @@ export default function VocabularioPage() {
 
         {deleteConfirm && (
           <div 
-            className="llw-modal-overlay"
+            className={`llw-modal-overlay ${deleteExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`}
             style={{
               position: 'fixed',
               top: 0,
@@ -1590,9 +2688,16 @@ export default function VocabularioPage() {
               justifyContent: 'center',
               zIndex: 10001,
             }}
+            onClick={() => {
+              setDeleteExiting(true)
+              setTimeout(() => {
+                setDeleteConfirm(null)
+                setDeleteExiting(false)
+              }, 250)
+            }}
           >
             <div
-              className="llw-modal-card"
+              className={`llw-modal-card ${deleteExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
               style={{
                 backgroundColor: 'var(--color-dark-blue)',
                 borderRadius: '20px',
@@ -1605,7 +2710,13 @@ export default function VocabularioPage() {
             >
               {/* Botón cerrar X */}
               <button
-                onClick={() => setDeleteConfirm(null)}
+                onClick={() => {
+                  setDeleteExiting(true)
+                  setTimeout(() => {
+                    setDeleteConfirm(null)
+                    setDeleteExiting(false)
+                  }, 250)
+                }}
                 style={{
                   position: 'absolute',
                   top: '16px',
@@ -1632,6 +2743,12 @@ export default function VocabularioPage() {
                   e.currentTarget.style.transform = 'scale(1) rotate(0deg)'
                   e.currentTarget.style.boxShadow = 'none'
                   e.currentTarget.style.backgroundColor = '#ff3b3b'
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)'
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
                 }}
               >
                 ✕
@@ -1694,7 +2811,13 @@ export default function VocabularioPage() {
               {/* Botones de acción */}
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
-                  onClick={() => setDeleteConfirm(null)}
+                  onClick={() => {
+                    setDeleteExiting(true)
+                    setTimeout(() => {
+                      setDeleteConfirm(null)
+                      setDeleteExiting(false)
+                    }, 250)
+                  }}
                   style={{
                     flex: 1,
                     padding: '12px 24px',
@@ -1749,1086 +2872,8 @@ export default function VocabularioPage() {
             </div>
           </div>
         )}
-
-        <style jsx>{`
-          .vocabulario-container {
-            padding: 2rem;
-          }
-
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-          }
-
-          h1 {
-            color: #2d3748;
-            font-size: 2rem;
-            margin: 0;
-          }
-
-          .upload-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-          }
-
-          .upload-btn:hover {
-            background: #059669;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-          }
-
-          .no-data {
-            text-align: center;
-            color: #718096;
-            padding: 3rem;
-            font-size: 1.1rem;
-          }
-
-          .vocabulary-sections {
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-          }
-
-          .level-section {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-          }
-
-          .level-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 3px solid #3b82f6;
-          }
-
-          .level-header h2 {
-            color: #1e40af;
-            font-size: 1.5rem;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-          }
-
-          .level-count {
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 0.4rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-          }
-
-          .vocab-item {
-            background: #f9fafb;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            border-left: 4px solid #10b981;
-            transition: all 0.2s;
-          }
-
-          .vocab-item:hover {
-            background: #f3f4f6;
-            transform: translateX(4px);
-          }
-
-          .vocab-item:last-child {
-            margin-bottom: 0;
-          }
-
-          .vocab-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .vocab-title {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex: 1;
-          }
-
-          .vocab-icon {
-            font-size: 1.2rem;
-          }
-
-          .vocab-name {
-            font-weight: 600;
-            color: #1f2937;
-            font-size: 1rem;
-          }
-
-          .vocab-date {
-            color: #9ca3af;
-            font-size: 0.85rem;
-          }
-
-          .vocab-actions {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-          }
-
-          .status-btn-sm {
-            border: none;
-            padding: 0.3rem 0.6rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 600;
-          }
-
-          .status-btn-sm.active {
-            background: #d1fae5;
-            color: #065f46;
-          }
-
-          .status-btn-sm.inactive {
-            background: #fee2e2;
-            color: #991b1b;
-          }
-
-          .btn-organize-sm {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-          }
-
-          .btn-organize-sm:hover {
-            background: #2563eb;
-          }
-
-          .vocab-stats {
-            margin-top: 0.75rem;
-            display: flex;
-            gap: 0.75rem;
-          }
-
-          .stat-badge {
-            background: #ede9fe;
-            color: #6b21a8;
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-          }
-
-          .stat-badge strong {
-            font-weight: 700;
-          }
-
-          .vocab-item-expanded {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border-left: 5px solid #3b82f6;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-          }
-
-          .units-display {
-            margin-top: 1.5rem;
-          }
-
-          .main-unit-display {
-            background: #f9fafb;
-            border-radius: 10px;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #8b5cf6;
-          }
-
-          .main-unit-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid #e5e7eb;
-          }
-
-          .unit-badge {
-            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-            color: white;
-            padding: 0.4rem 0.9rem;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
-          }
-
-          .unit-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #1f2937;
-          }
-
-          .subunits-display {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-          }
-
-          .subunit-display {
-            background: white;
-            border-radius: 8px;
-            padding: 1rem;
-            border-left: 3px solid #3b82f6;
-          }
-
-          .subunit-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #e5e7eb;
-          }
-
-          .subunit-badge {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            padding: 0.25rem 0.7rem;
-            border-radius: 15px;
-            font-weight: 700;
-            font-size: 0.8rem;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-          }
-
-          .subunit-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #374151;
-            flex: 1;
-          }
-
-          .word-count-badge {
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 0.2rem 0.6rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-          }
-
-          .words-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 0.75rem;
-          }
-
-          .word-item-display {
-            background: #f8fafc;
-            padding: 0.65rem 0.85rem;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            border-left: 3px solid #10b981;
-            transition: all 0.2s;
-          }
-
-          .word-item-display:hover {
-            background: #f1f5f9;
-            transform: translateX(3px);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-          }
-
-          .word-term {
-            font-weight: 700;
-            color: #0f172a;
-            font-size: 0.9rem;
-            min-width: fit-content;
-          }
-
-          .word-separator {
-            color: #10b981;
-            font-weight: 700;
-            font-size: 1rem;
-          }
-
-          .word-meaning {
-            color: #475569;
-            font-size: 0.85rem;
-            flex: 1;
-          }
-
-          .no-units-message {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: #6b7280;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-top: 1rem;
-          }
-
-          .no-units-message p:first-child {
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
-          }
-
-          .vocabulario-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-          }
-
-          .vocab-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s;
-          }
-
-          .vocab-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-          }
-
-          .vocab-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-          }
-
-          .nivel-badge {
-            background: #3b82f6;
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
-          }
-
-          .status-btn {
-            border: none;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .status-btn.active {
-            background: #d1fae5;
-            color: #065f46;
-          }
-
-          .status-btn.inactive {
-            background: #fee2e2;
-            color: #991b1b;
-          }
-
-          .vocab-card h3 {
-            color: #1e40af;
-            margin: 0.5rem 0;
-            font-size: 1.1rem;
-            word-break: break-word;
-          }
-
-          .fecha {
-            color: #9ca3af;
-            font-size: 0.85rem;
-            margin: 0.5rem 0;
-          }
-
-          .vocab-preview {
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid #e5e7eb;
-            color: #374151;
-            font-size: 0.9rem;
-          }
-
-          .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            animation: fadeIn 0.2s;
-          }
-
-          .modal-content {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            width: 90%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s;
-          }
-
-          .modal-content-large {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            width: 95%;
-            max-width: 1000px;
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s;
-          }
-
-          .processing-modal {
-            text-align: center;
-            padding: 3rem;
-          }
-
-          .spinner {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 2rem;
-            border: 5px solid #e5e7eb;
-            border-top: 5px solid #10b981;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-          }
-
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-
-          .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-          }
-
-          .modal-content h2,
-          .modal-content-large h2 {
-            color: #1e293b;
-            margin: 0;
-          }
-
-          .btn-organize {
-            width: 100%;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 0.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            margin-top: 1rem;
-            transition: all 0.2s;
-          }
-
-          .btn-organize:hover {
-            background: #2563eb;
-          }
-
-          .units-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin: 1.5rem 0;
-          }
-
-          .create-unit-section,
-          .existing-units-section {
-            background: #f9fafb;
-            padding: 1.5rem;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-          }
-
-          .create-unit-section h3,
-          .existing-units-section h3 {
-            margin: 0 0 1rem 0;
-            color: #1e293b;
-            font-size: 1.1rem;
-          }
-
-          .words-selector {
-            margin: 1.5rem 0;
-          }
-
-          .words-selector label {
-            display: block;
-            margin-bottom: 0.75rem;
-            color: #374151;
-            font-weight: 500;
-          }
-
-          .words-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.5rem;
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #d1d5db;
-            padding: 0.75rem;
-            border-radius: 8px;
-            background: white;
-          }
-
-          .word-checkbox {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: background 0.2s;
-          }
-
-          .word-checkbox:hover {
-            background: #f0f9ff;
-          }
-
-          .word-checkbox input {
-            margin-top: 0.25rem;
-            cursor: pointer;
-          }
-
-          .word-text {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            flex: 1;
-          }
-
-          .word-text strong {
-            color: #1f2937;
-            font-size: 0.95rem;
-          }
-
-          .word-text small {
-            color: #6b7280;
-            font-size: 0.85rem;
-          }
-
-          .units-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-          }
-
-          .unit-card {
-            background: white;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 1rem;
-          }
-
-          .unit-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.75rem;
-          }
-
-          .unit-header h4 {
-            margin: 0;
-            color: #1e40af;
-            font-size: 0.95rem;
-          }
-
-          .btn-delete-unit {
-            background: #fee2e2;
-            color: #991b1b;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-          }
-
-          .btn-delete-unit:hover {
-            background: #fecaca;
-          }
-
-          .unit-words {
-            margin: 0 0 0.5rem 0;
-            color: #4b5563;
-            font-size: 0.9rem;
-          }
-
-          .unit-words-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-          }
-
-          .word-tag {
-            display: inline-block;
-            background: #dbeafe;
-            color: #0c4a6e;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-          }
-
-          .btn-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #6b7280;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: color 0.2s;
-          }
-
-          .btn-close:hover {
-            color: #1f2937;
-          }
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-          }
-
-          .btn-add:hover {
-            background: #059669;
-          }
-
-          .vocab-table-container {
-            max-height: 400px;
-            overflow-y: auto;
-            margin: 1.5rem 0;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-          }
-
-          .vocab-table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-
-          .vocab-table thead {
-            background: #f3f4f6;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-          }
-
-          .vocab-table th {
-            padding: 0.75rem;
-            text-align: left;
-            font-weight: 600;
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
-          }
-
-          .vocab-table td {
-            padding: 0.5rem;
-            border-bottom: 1px solid #e5e7eb;
-          }
-
-          .vocab-table input,
-          .vocab-table select {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 0.9rem;
-          }
-
-          .vocab-table input:focus,
-          .vocab-table select:focus {
-            outline: none;
-            border-color: #3b82f6;
-          }
-
-          .btn-delete {
-            background: #fee2e2;
-            color: #991b1b;
-            border: none;
-            padding: 0.4rem 0.6rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.2s;
-          }
-
-          .btn-delete:hover {
-            background: #fecaca;
-          }
-
-          .vocab-summary {
-            padding: 1rem;
-            background: #f0fdf4;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-            color: #166534;
-            text-align: center;
-          }
-
-          .form-group {
-            margin-bottom: 1.5rem;
-          }
-
-          .form-group label {
-            display: block;
-            color: #374151;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-          }
-
-          .form-group input,
-          .form-group select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.2s;
-          }
-
-          .form-group input:focus,
-          .form-group select:focus {
-            outline: none;
-            border-color: #3b82f6;
-          }
-
-          .file-info {
-            margin-top: 0.5rem;
-            color: #10b981;
-            font-size: 0.9rem;
-          }
-
-          .summary-badges {
-            display: flex;
-            gap: 0.5rem;
-          }
-
-          .badge {
-            padding: 0.4rem 0.9rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-          }
-
-          .badge-primary {
-            background: #dbeafe;
-            color: #1e40af;
-          }
-
-          .badge-success {
-            background: #d1fae5;
-            color: #065f46;
-          }
-
-          .units-container {
-            max-height: 500px;
-            overflow-y: auto;
-            margin-bottom: 1.5rem;
-          }
-
-          .unit-section {
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            overflow: hidden;
-          }
-
-          .unit-header {
-            background: #f9fafb;
-            padding: 1rem 1.25rem;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.2s;
-          }
-
-          .unit-header:hover {
-            background: #f3f4f6;
-          }
-
-          .unit-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-          }
-
-          .unit-number {
-            background: #3b82f6;
-            color: white;
-            padding: 0.3rem 0.8rem;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 0.85rem;
-          }
-
-          .unit-name {
-            font-weight: 600;
-            color: #1f2937;
-            font-size: 1rem;
-          }
-
-          .unit-meta {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-          }
-
-          .word-count {
-            color: #6b7280;
-            font-size: 0.9rem;
-          }
-
-          .subunit-badge {
-            background: #e0e7ff;
-            color: #4338ca;
-            padding: 0.25rem 0.6rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-          }
-
-          .expand-icon {
-            color: #9ca3af;
-            font-size: 0.8rem;
-          }
-
-          .unit-content {
-            background: #f9fafb;
-          }
-
-          .subunit-section {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #e5e7eb;
-          }
-
-          .subunit-section:last-child {
-            border-bottom: none;
-          }
-
-          .subunit-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e5e7eb;
-          }
-
-          .subunit-number {
-            background: #6366f1;
-            color: white;
-            padding: 0.25rem 0.6rem;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 0.8rem;
-          }
-
-          .subunit-name {
-            font-weight: 600;
-            color: #374151;
-            font-size: 0.95rem;
-            flex: 1;
-          }
-
-          .subunit-count {
-            color: #9ca3af;
-            font-size: 0.85rem;
-          }
-
-          .unit-words {
-            padding: 1.25rem;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-            max-height: 500px;
-            overflow-y: auto;
-          }
-
-          .words-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 0.75rem;
-          }
-
-          .word-card {
-            background: #f9fafb;
-            padding: 0.75rem;
-            border-radius: 6px;
-            border-left: 3px solid #10b981;
-          }
-
-          .word-term {
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 0.25rem;
-            font-size: 0.95rem;
-          }
-
-          .word-meaning {
-            color: #6b7280;
-            font-size: 0.85rem;
-            line-height: 1.4;
-          }
-
-          .more-indicator {
-            background: #e5e7eb;
-            border-left: 3px solid #9ca3af;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #6b7280;
-            font-weight: 500;
-          }
-
-          .modal-actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 2rem;
-          }
-
-          .btn-primary {
-            flex: 1;
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 0.875rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .btn-primary:hover:not(:disabled) {
-            background: #059669;
-          }
-
-          .btn-primary:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-          }
-
-          .btn-secondary {
-            flex: 1;
-            background: #f3f4f6;
-            color: #374151;
-            border: none;
-            padding: 0.875rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .btn-secondary:hover {
-            background: #e5e7eb;
-          }
-
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-
-          @keyframes slideUp {
-            from {
-              opacity: 0;
-              transform: translateY(20px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-
-          /* FormModal-style animations for consistency */
-          @keyframes llw-fade-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes llw-pop-in {
-            0% { opacity: 0; transform: translateY(15px) scale(0.94) rotate(1deg); }
-            50% { opacity: 0.8; transform: translateY(-2px) scale(1.03) rotate(-0.5deg); }
-            100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
-          }
-          .llw-modal-overlay { animation: llw-fade-in 200ms ease-out forwards; }
-          .llw-modal-card { animation: llw-pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-
-          @media (max-width: 1024px) {
-            .units-container {
-              grid-template-columns: 1fr;
-            }
-          }
-
-          @media (max-width: 768px) {
-            .vocabulario-container {
-              padding: 1rem;
-            }
-
-            .header {
-              flex-direction: column;
-              gap: 1rem;
-              align-items: stretch;
-            }
-
-            .vocabulario-grid {
-              grid-template-columns: 1fr;
-            }
-
-            .modal-content,
-            .modal-content-large {
-              width: 95%;
-              padding: 1.5rem;
-            }
-
-            .modal-header {
-              flex-direction: column;
-              gap: 1rem;
-            }
-
-            .vocab-table-container {
-              max-height: 300px;
-            }
-
-            .vocab-table th,
-            .vocab-table td {
-              padding: 0.4rem;
-              font-size: 0.85rem;
-            }
-          }
-        `}</style>
       </div>
     </DashboardLayout>
+    </>
   )
 }

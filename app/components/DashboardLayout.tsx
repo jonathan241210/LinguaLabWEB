@@ -172,7 +172,7 @@ export default function DashboardLayout({
         case 'teachers':
           return '/dashboard/admin/docentes';
         case 'labs':
-          return '/dashboard/admin';
+          return '/dashboard/admin/laboratorios';
         case 'vocab':
           return '/dashboard/admin/vocabulario';
         default:
