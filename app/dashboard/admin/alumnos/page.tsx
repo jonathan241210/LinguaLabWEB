@@ -47,6 +47,8 @@ function AlumnosPage() {
   const [statsExiting, setStatsExiting] = useState(false);
   const [selectedStudentStats, setSelectedStudentStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedStudentEdit, setSelectedStudentEdit] = useState<Alumno | null>(null);
 
   const studentFields: any = [
     { name: 'nombre', label: 'Name(s)', type: 'text', required: true, placeholder: 'E.g.: Juan' },
@@ -55,6 +57,15 @@ function AlumnosPage() {
     { name: 'matricula', label: 'Student ID', type: 'text', required: true, placeholder: 'E.g.: A12345' },
     { name: 'correo', label: 'Email', type: 'email', required: true, placeholder: 'email@example.com' },
     { name: 'contrasena', label: 'Password', type: 'password', required: true, autoFillFrom: 'matricula', placeholder: 'Auto = student ID', showInfo: true, infoMessage: 'Student must change their password in profile' },
+  ];
+
+  const editStudentFields: any = [
+    { name: 'nombre', label: 'Name(s)', type: 'text', required: true, placeholder: 'E.g.: Juan' },
+    { name: 'primer_apellido', label: 'First Last Name', type: 'text', required: true, placeholder: 'E.g.: Pérez' },
+    { name: 'segundo_apellido', label: 'Second Last Name', type: 'text', required: false, placeholder: 'Optional' },
+    { name: 'matricula', label: 'Student ID', type: 'text', required: true, placeholder: 'E.g.: A12345' },
+    { name: 'correo', label: 'Email', type: 'email', required: true, placeholder: 'email@example.com' },
+    { name: 'contrasena', label: 'New Password', type: 'password', required: false, placeholder: 'Leave empty to keep current password' },
   ];
 
   const loadAlumnos = async () => {
@@ -182,6 +193,50 @@ function AlumnosPage() {
     
     setConfirmToggleModal(null);
     await handleToggleStatus(confirmToggleModal.studentId, confirmToggleModal.currentActive);
+  };
+
+  const handleEditStudent = (alumno: Alumno) => {
+    setSelectedStudentEdit(alumno);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateStudent = async (formData: Record<string, string>) => {
+    try {
+      if (!selectedStudentEdit) return;
+
+      const res = await fetch('/api/alumnos/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_alumno: selectedStudentEdit.id_alumno,
+          nombre: formData.nombre,
+          primer_apellido: formData.primer_apellido,
+          segundo_apellido: formData.segundo_apellido,
+          correo: formData.correo,
+          matricula: formData.matricula,
+          contrasena: formData.contrasena || undefined
+        })
+      });
+
+      const data = await res.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Error updating student');
+      }
+
+      await loadAlumnos();
+      setSuccessModal({
+        isOpen: true,
+        message: 'Student information updated successfully',
+        type: 'success',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      setShowEditModal(false);
+      setSelectedStudentEdit(null);
+    } catch (e: any) {
+      console.error('Error updating student', e);
+      throw e;
+    }
   };
 
   const handleViewStatistics = async (id_alumno: number) => {
@@ -547,41 +602,62 @@ function AlumnosPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       <button
                         onClick={() => handleViewStatistics(alumno.id_alumno)}
                         style={{
-                          flex: 1,
+                          flex: '1 1 calc(50% - 4px)',
                           padding: '10px 16px',
-                          backgroundColor: 'var(--color-dark-blue)',
+                          backgroundColor: 'var(--color-primary-green)',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: 600,
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
                           cursor: 'pointer',
-                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px'
+                          transition: 'all 0.2s',
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(46,168,83,0.3)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'translateY(0)';
                           e.currentTarget.style.boxShadow = 'none';
                         }}
                       >
-                        Statistics
+                        View Statistics
+                      </button>
+                      <button
+                        onClick={() => handleEditStudent(alumno)}
+                        style={{
+                          flex: '1 1 calc(50% - 4px)',
+                          padding: '10px 16px',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        Edit Info
                       </button>
                       <button
                         onClick={() => showToggleConfirmation(alumno)}
                         disabled={isToggling === alumno.id_alumno}
                         style={{
-                          flex: 1,
+                          flex: '1 1 100%',
                           padding: '10px 16px',
                           backgroundColor: alumno.usuario_activo === 1 ? '#ef4444' : 'var(--color-primary-green)',
                           color: 'white',
@@ -625,6 +701,28 @@ function AlumnosPage() {
           fields={studentFields} 
           onSubmit={handleAddStudentModal} 
           submitButtonLabel="Add Student" 
+        />
+      )}
+
+      {showEditModal && selectedStudentEdit && (
+        <FormModal 
+          isOpen={showEditModal} 
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedStudentEdit(null);
+          }} 
+          title="Edit Student Information" 
+          fields={editStudentFields} 
+          onSubmit={handleUpdateStudent} 
+          submitButtonLabel="Update Information" 
+          initialValues={{
+            nombre: selectedStudentEdit.nombre_completo.split(' ')[0],
+            primer_apellido: selectedStudentEdit.nombre_completo.split(' ')[1] || '',
+            segundo_apellido: selectedStudentEdit.nombre_completo.split(' ')[2] || '',
+            matricula: selectedStudentEdit.matricula,
+            correo: selectedStudentEdit.correo,
+            contrasena: ''
+          }}
         />
       )}
 

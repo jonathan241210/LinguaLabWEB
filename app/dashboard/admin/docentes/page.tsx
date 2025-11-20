@@ -36,6 +36,8 @@ function DocentesPage() {
     currentActive: number;
     action: 'activate' | 'deactivate';
   } | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedTeacherEdit, setSelectedTeacherEdit] = useState<Docente | null>(null);
 
   const teacherFields: any = [
     { name: 'nombre', label: 'Name(s)', type: 'text', required: true, placeholder: 'E.g.: María' },
@@ -44,6 +46,15 @@ function DocentesPage() {
     { name: 'matricula', label: 'Teacher ID', type: 'text', required: true, placeholder: 'E.g.: T12345' },
     { name: 'correo', label: 'Email', type: 'email', required: true, placeholder: 'email@example.com' },
     { name: 'contrasena', label: 'Password', type: 'password', required: true, autoFillFrom: 'matricula', placeholder: 'Auto = teacher ID', showInfo: true, infoMessage: 'Teacher must change their password in profile' },
+  ];
+
+  const editTeacherFields: any = [
+    { name: 'nombre', label: 'Name(s)', type: 'text', required: true, placeholder: 'E.g.: María' },
+    { name: 'primer_apellido', label: 'First Last Name', type: 'text', required: true, placeholder: 'E.g.: García' },
+    { name: 'segundo_apellido', label: 'Second Last Name', type: 'text', required: false, placeholder: 'Optional' },
+    { name: 'matricula', label: 'Employee ID', type: 'text', required: true, placeholder: 'E.g.: T12345' },
+    { name: 'correo', label: 'Email', type: 'email', required: true, placeholder: 'email@example.com' },
+    { name: 'contrasena', label: 'New Password', type: 'password', required: false, placeholder: 'Leave empty to keep current password' },
   ];
 
   const loadDocentes = async () => {
@@ -158,6 +169,50 @@ function DocentesPage() {
     
     setConfirmToggleModal(null);
     await handleToggleStatus(confirmToggleModal.teacherId, confirmToggleModal.currentActive);
+  };
+
+  const handleEditTeacher = (docente: Docente) => {
+    setSelectedTeacherEdit(docente);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateTeacher = async (formData: Record<string, string>) => {
+    try {
+      if (!selectedTeacherEdit) return;
+
+      const res = await fetch('/api/docentes/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_docente: selectedTeacherEdit.id_docente,
+          nombre: formData.nombre,
+          primer_apellido: formData.primer_apellido,
+          segundo_apellido: formData.segundo_apellido,
+          correo: formData.correo,
+          matricula: formData.matricula,
+          contrasena: formData.contrasena || undefined
+        })
+      });
+
+      const data = await res.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Error updating teacher');
+      }
+
+      await loadDocentes();
+      setSuccessModal({
+        isOpen: true,
+        message: 'Teacher information updated successfully',
+        type: 'success',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      setShowEditModal(false);
+      setSelectedTeacherEdit(null);
+    } catch (e: any) {
+      console.error('Error updating teacher', e);
+      throw e;
+    }
   };
 
   const filteredDocentes = docentes.filter(d => {
@@ -458,38 +513,65 @@ function DocentesPage() {
                       )}
                     </div>
 
-                    {/* Action Button */}
-                    <button
-                      onClick={() => showToggleConfirmation(docente)}
-                      disabled={isToggling === docente.id_docente}
-                      style={{
-                        width: '100%',
-                        padding: '10px 16px',
-                        backgroundColor: docente.usuario_activo === 1 ? '#ef4444' : 'var(--color-primary-green)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: isToggling === docente.id_docente ? 'wait' : 'pointer',
-                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                        opacity: isToggling === docente.id_docente ? 0.6 : 1,
-                        transform: isToggling === docente.id_docente ? 'scale(0.98)' : 'scale(1)'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (isToggling !== docente.id_docente) {
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => handleEditTeacher(docente)}
+                        style={{
+                          flex: '1 1 calc(50% - 4px)',
+                          padding: '10px 16px',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                      {isToggling === docente.id_docente ? 'Processing...' : 
-                       docente.usuario_activo === 1 ? 'Deactivate' : 'Activate'}
-                    </button>
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        Edit Info
+                      </button>
+                      <button
+                        onClick={() => showToggleConfirmation(docente)}
+                        disabled={isToggling === docente.id_docente}
+                        style={{
+                          flex: '1 1 100%',
+                          padding: '10px 16px',
+                          backgroundColor: docente.usuario_activo === 1 ? '#ef4444' : 'var(--color-primary-green)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: isToggling === docente.id_docente ? 'wait' : 'pointer',
+                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                          opacity: isToggling === docente.id_docente ? 0.6 : 1,
+                          transform: isToggling === docente.id_docente ? 'scale(0.98)' : 'scale(1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (isToggling !== docente.id_docente) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        {isToggling === docente.id_docente ? 'Processing...' : 
+                         docente.usuario_activo === 1 ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -506,6 +588,28 @@ function DocentesPage() {
           fields={teacherFields} 
           onSubmit={handleAddTeacherModal} 
           submitButtonLabel="Add Teacher" 
+        />
+      )}
+
+      {showEditModal && selectedTeacherEdit && (
+        <FormModal 
+          isOpen={showEditModal} 
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedTeacherEdit(null);
+          }} 
+          title="Edit Teacher Information" 
+          fields={editTeacherFields} 
+          onSubmit={handleUpdateTeacher} 
+          submitButtonLabel="Update Information" 
+          initialValues={{
+            nombre: selectedTeacherEdit.nombre_completo.split(' ')[0],
+            primer_apellido: selectedTeacherEdit.nombre_completo.split(' ')[1] || '',
+            segundo_apellido: selectedTeacherEdit.nombre_completo.split(' ')[2] || '',
+            matricula: selectedTeacherEdit.matricula,
+            correo: selectedTeacherEdit.correo,
+            contrasena: ''
+          }}
         />
       )}
 

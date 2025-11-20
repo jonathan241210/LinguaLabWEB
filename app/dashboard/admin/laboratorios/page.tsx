@@ -61,6 +61,9 @@ export default function LaboratoriosPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false)
   const [createExiting, setCreateExiting] = useState(false)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [previewLab, setPreviewLab] = useState<Laboratorio | null>(null)
+  const [previewWords, setPreviewWords] = useState<any[]>([])
   
   // Estados del formulario de creación
   const [selectedPlantilla, setSelectedPlantilla] = useState<PlantillaJuego | null>(null)
@@ -82,6 +85,24 @@ export default function LaboratoriosPage() {
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [refreshFrequency, setRefreshFrequency] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly')
   const [refreshType, setRefreshType] = useState<'palabras' | 'dificultad' | 'ambos'>('palabras')
+  
+  // Estados para el juego interactivo en preview
+  const [currentWordIndex, setCurrentWordIndex] = useState(0)
+  const [guessedLetters, setGuessedLetters] = useState<string[]>([])
+  const [wrongGuesses, setWrongGuesses] = useState(0)
+  const [flippedCards, setFlippedCards] = useState<number[]>([])
+  const [matchedPairs, setMatchedPairs] = useState<number[]>([])
+  const [selectedMatching, setSelectedMatching] = useState<{word?: number, meaning?: number}>({})
+  const [matchedLines, setMatchedLines] = useState<Array<{wordIdx: number, meaningIdx: number}>>([])
+  const [fillBlankAnswers, setFillBlankAnswers] = useState<string[]>([])
+  const [fillBlankResults, setFillBlankResults] = useState<boolean[]>([])
+  
+  // Estados para tracking de progreso en Hangman
+  const [completedWords, setCompletedWords] = useState<Set<number>>(new Set())
+  const [wordProgress, setWordProgress] = useState<Map<number, {guessed: string[], wrong: number}>>(new Map())
+  const [gameTimer, setGameTimer] = useState(0)
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null)
+  const [gameStarted, setGameStarted] = useState(false)
   
   const [successModal, setSuccessModal] = useState<{
     isOpen: boolean
@@ -280,6 +301,292 @@ export default function LaboratoriosPage() {
       setSuccessModal({
         isOpen: true,
         message: 'Error updating laboratory status',
+        type: 'error',
+        onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+      })
+    }
+  }
+
+  const handlePreviewGame = async (lab: Laboratorio) => {
+    try {
+      // Reiniciar estados del juego
+      setCurrentWordIndex(0)
+      setGuessedLetters([])
+      setWrongGuesses(0)
+      setFlippedCards([])
+      setMatchedPairs([])
+      setSelectedMatching({})
+      setMatchedLines([])
+      setFillBlankAnswers([])
+      setFillBlankResults([])
+      setCompletedWords(new Set())
+      setWordProgress(new Map())
+      setGameTimer(0)
+      setGameStarted(false)
+      if (timerInterval) clearInterval(timerInterval)
+      
+      // Obtener las palabras del laboratorio desde la base de datos
+      const res = await fetch(`/api/laboratorios/preview?id=${lab.id_laboratorio}`)
+      if (res.ok) {
+        const data = await res.json()
+        console.log('=== PREVIEW DEBUG ===')
+        console.log('Full response:', data)
+        console.log('Total words:', data.palabras?.length)
+        console.log('First word:', JSON.stringify(data.palabras?.[0], null, 2))
+        console.log('All word keys:', data.palabras?.[0] ? Object.keys(data.palabras[0]) : 'No words')
+        setPreviewLab(lab)
+        setPreviewWords(data.palabras || [])
+        setShowPreviewModal(true)
+      } else {
+        setSuccessModal({
+          isOpen: true,
+          message: 'Error loading game preview',
+          type: 'error',
+          onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+        })
+      }
+    } catch (error) {
+      console.error('Error previewing game:', error)
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error loading game preview',
+        type: 'error',
+        onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+      })
+    }
+  }
+
+  // Funciones del juego Hangman
+  const currentWord = previewWords[currentWordIndex]
+  const wordToGuess = currentWord?.palabra?.toLowerCase() || ''
+  const maxWrongGuesses = previewLab?.intentos_permitidos || 6
+  
+  // Cargar progreso de la palabra actual
+  useEffect(() => {
+    const progress = wordProgress.get(currentWordIndex)
+    if (progress) {
+      setGuessedLetters(progress.guessed)
+      setWrongGuesses(progress.wrong)
+    } else {
+      setGuessedLetters([])
+      setWrongGuesses(0)
+    }
+  }, [currentWordIndex, wordProgress])
+  
+  const handleLetterGuess = (letter: string) => {
+    if (!guessedLetters.includes(letter) && !completedWords.has(currentWordIndex)) {
+      // Iniciar timer en primera letra si hay tiempo límite
+      if (!gameStarted && previewLab?.tiempo_limite) {
+        setGameStarted(true)
+        const interval = setInterval(() => {
+          setGameTimer(prev => prev + 1)
+        }, 1000)
+        setTimerInterval(interval)
+      }
+      
+      const newGuessed = [...guessedLetters, letter]
+      const newWrong = !wordToGuess.includes(letter) ? wrongGuesses + 1 : wrongGuesses
+      
+      setGuessedLetters(newGuessed)
+      setWrongGuesses(newWrong)
+      
+      // Guardar progreso
+      const newProgress = new Map(wordProgress)
+      newProgress.set(currentWordIndex, { guessed: newGuessed, wrong: newWrong })
+      setWordProgress(newProgress)
+    }
+  }
+  
+  // Listener para teclado físico
+  useEffect(() => {
+    if (!showPreviewModal || previewLab?.tipo_juego_code !== 'hangman') return
+    
+    const handleKeyPress = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if (/^[a-z]$/.test(key)) {
+        handleLetterGuess(key)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [showPreviewModal, previewLab, guessedLetters, currentWordIndex, completedWords])
+  
+  const isWordComplete = wordToGuess.split('').every((letter: string) => 
+    guessedLetters.includes(letter) || letter === ' ' || !/[a-z]/.test(letter)
+  )
+  
+  const isGameOver = wrongGuesses >= maxWrongGuesses
+  
+  // Marcar palabra como completada
+  useEffect(() => {
+    if (isWordComplete && !completedWords.has(currentWordIndex) && wordToGuess) {
+      setCompletedWords(new Set([...completedWords, currentWordIndex]))
+    }
+  }, [isWordComplete, currentWordIndex, wordToGuess])
+  
+  const nextWord = () => {
+    if (currentWordIndex < previewWords.length - 1) {
+      setCurrentWordIndex(currentWordIndex + 1)
+    }
+  }
+  
+  const prevWord = () => {
+    if (currentWordIndex > 0) {
+      setCurrentWordIndex(currentWordIndex - 1)
+    }
+  }
+  
+  const formatTime = (seconds: number, timeLimitMinutes: number) => {
+    const currentMins = Math.floor(seconds / 60)
+    const currentSecs = seconds % 60
+    
+    // Convertir el tiempo límite de segundos a minutos si es necesario
+    const totalMins = timeLimitMinutes > 60 ? Math.floor(timeLimitMinutes / 60) : timeLimitMinutes
+    
+    // Formato: "X minutos Y segundos de Z minutos"
+    let current = ''
+    if (currentMins > 0) {
+      current = `${currentMins} minuto${currentMins !== 1 ? 's' : ''}`
+      if (currentSecs > 0) {
+        current += ` ${currentSecs} segundo${currentSecs !== 1 ? 's' : ''}`
+      }
+    } else {
+      current = `${currentSecs} segundo${currentSecs !== 1 ? 's' : ''}`
+    }
+    
+    return `${current} de ${totalMins} minuto${totalMins !== 1 ? 's' : ''}`
+  }
+  
+  const resetGame = () => {
+    setCompletedWords(new Set())
+    setWordProgress(new Map())
+    setGameTimer(0)
+    setGameStarted(false)
+    setCurrentWordIndex(0)
+    setGuessedLetters([])
+    setWrongGuesses(0)
+    if (timerInterval) {
+      clearInterval(timerInterval)
+      setTimerInterval(null)
+    }
+  }
+
+  // Funciones del juego Memory
+  const handleMemoryCardClick = (index: number) => {
+    if (flippedCards.length === 2 || matchedPairs.includes(index) || flippedCards.includes(index)) return
+    
+    const newFlipped = [...flippedCards, index]
+    setFlippedCards(newFlipped)
+    
+    if (newFlipped.length === 2) {
+      const [first, second] = newFlipped
+      const cards = createMemoryCards()
+      
+      if (cards[first].id === cards[second].id) {
+        // Coincidencia encontrada
+        setTimeout(() => {
+          setMatchedPairs([...matchedPairs, first, second])
+          setFlippedCards([])
+        }, 500)
+      } else {
+        // No coinciden
+        setTimeout(() => {
+          setFlippedCards([])
+        }, 1000)
+      }
+    }
+  }
+
+  const createMemoryCards = () => {
+    const words = previewWords.slice(0, 8) // 8 pares = 16 cartas
+    const cards = words.flatMap((w, i) => [
+      { id: i, type: 'word', content: w.palabra, wordObj: w },
+      { id: i, type: 'meaning', content: w.significado, wordObj: w }
+    ])
+    return cards.sort(() => Math.random() - 0.5)
+  }
+
+  // Funciones del juego Matching
+  const handleMatchingClick = (index: number, type: 'word' | 'meaning') => {
+    if (type === 'word') {
+      if (selectedMatching.word === index) {
+        setSelectedMatching({ ...selectedMatching, word: undefined })
+      } else {
+        setSelectedMatching({ ...selectedMatching, word: index })
+        if (selectedMatching.meaning !== undefined) {
+          checkMatch(index, selectedMatching.meaning)
+        }
+      }
+    } else {
+      if (selectedMatching.meaning === index) {
+        setSelectedMatching({ ...selectedMatching, meaning: undefined })
+      } else {
+        setSelectedMatching({ ...selectedMatching, meaning: index })
+        if (selectedMatching.word !== undefined) {
+          checkMatch(selectedMatching.word, index)
+        }
+      }
+    }
+  }
+
+  const checkMatch = (wordIdx: number, meaningIdx: number) => {
+    if (wordIdx === meaningIdx) {
+      setMatchedLines([...matchedLines, { wordIdx, meaningIdx }])
+    }
+    setTimeout(() => {
+      setSelectedMatching({})
+    }, 500)
+  }
+
+  // Funciones del juego Fill in the Blanks
+  const checkFillBlanks = () => {
+    const results = previewWords.slice(0, 10).map((word, idx) => {
+      return fillBlankAnswers[idx]?.toLowerCase().trim() === word.palabra.toLowerCase().trim()
+    })
+    setFillBlankResults(results)
+  }
+
+  const resetFillBlanks = () => {
+    setFillBlankAnswers([])
+    setFillBlankResults([])
+  }
+
+  const handleDeleteLab = async (id: number) => {
+    if (!confirm('⚠️ Are you sure you want to delete this laboratory?\n\nThis action cannot be undone and will remove all associated data.')) {
+      return
+    }
+
+    try {
+      const res = await fetch('/api/laboratorios/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_laboratorio: id })
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        fetchData()
+        setSuccessModal({
+          isOpen: true,
+          message: 'Laboratory deleted successfully!',
+          type: 'success',
+          onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+        })
+      } else {
+        setSuccessModal({
+          isOpen: true,
+          message: data.error || 'Error deleting laboratory',
+          type: 'error',
+          onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting laboratory:', error)
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error deleting laboratory',
         type: 'error',
         onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
       })
@@ -509,11 +816,20 @@ export default function LaboratoriosPage() {
                     }}>
                       {lab.icono}
                     </div>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
                         {lab.titulo}
                       </h3>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px' }}>
+                        {new Date(lab.fecha_creacion).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{
                           background: '#f1f5f9',
                           color: '#475569',
@@ -536,6 +852,31 @@ export default function LaboratoriosPage() {
                         </span>
                       </div>
                     </div>
+                  </div>
+                </div>
+                
+                {/* Información del vocabulario y unidades */}
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '10px 12px',
+                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                  borderRadius: '10px',
+                  border: '1px solid #bbf7d0'
+                }}>
+                  <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '600', marginBottom: '4px' }}>
+                    📖 {(lab as any).vocabulario_nombre || 'Unknown vocabulary'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#16a34a' }}>
+                    📚 {(() => {
+                      const unidadesData = (lab as any).unidades_seleccionadas;
+                      if (!unidadesData) return 'All units';
+                      try {
+                        const ids = JSON.parse(unidadesData);
+                        return Array.isArray(ids) && ids.length > 0 ? `Units: ${ids.join(', ')}` : 'All units';
+                      } catch {
+                        return 'All units';
+                      }
+                    })()}
                   </div>
                 </div>
 
@@ -569,6 +910,34 @@ export default function LaboratoriosPage() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handlePreviewGame(lab)
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)'
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
+                  >
+                    Preview
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -624,6 +993,34 @@ export default function LaboratoriosPage() {
                     }}
                   >
                     Assign Groups
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteLab(lab.id_laboratorio)
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)'
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
+                  >
+                    Delete
                   </button>
                 </div>
               </div>
@@ -924,7 +1321,7 @@ export default function LaboratoriosPage() {
                               fontWeight: '600',
                               border: isSelected ? '1px solid rgba(255,255,255,0.3)' : 'none'
                             }}>
-                              {vocab.contenido.length} words
+                              {vocab.contenido.length} units
                             </span>
                           </div>
                         </div>
@@ -937,10 +1334,40 @@ export default function LaboratoriosPage() {
               {/* Paso 4: Seleccionar unidades */}
               {selectedVocabulario && unidades.length > 0 && (
                 <div style={{ marginBottom: '48px' }}>
-                  <h3 style={{ color: 'white', fontSize: '19px', fontWeight: '700', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '12px', letterSpacing: '-0.5px' }}>
-                    <span style={{ fontSize: '24px' }}></span>
-                    Step 4: Select Units
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+                    <h3 style={{ color: 'white', fontSize: '19px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px', letterSpacing: '-0.5px', margin: 0 }}>
+                      <span style={{ fontSize: '24px' }}>📚</span>
+                      Step 4: Select Units
+                    </h3>
+                    <button
+                      onClick={() => {
+                        if (selectedUnidades.length === unidades.length) {
+                          setSelectedUnidades([]);
+                        } else {
+                          setSelectedUnidades(unidades.map(u => u.id_unidad));
+                        }
+                      }}
+                      style={{
+                        background: selectedUnidades.length === unidades.length 
+                          ? 'rgba(239, 68, 68, 0.2)'
+                          : 'rgba(34, 197, 94, 0.2)',
+                        color: selectedUnidades.length === unidades.length 
+                          ? '#ef4444'
+                          : '#22c55e',
+                        border: selectedUnidades.length === unidades.length
+                          ? '1px solid rgba(239, 68, 68, 0.3)'
+                          : '1px solid rgba(34, 197, 94, 0.3)',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {selectedUnidades.length === unidades.length ? '✖ Deselect All' : '✓ Select All Units'}
+                    </button>
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
                     {unidades.map((unidad) => {
                       const isSelected = selectedUnidades.includes(unidad.id_unidad)
@@ -1218,10 +1645,10 @@ export default function LaboratoriosPage() {
                           style={{
                             width: '100%',
                             padding: '8px 12px',
-                            background: 'rgba(255,255,255,0.05)',
+                            background: 'white',
                             border: '1px solid rgba(255,255,255,0.2)',
                             borderRadius: '8px',
-                            color: 'white',
+                            color: '#1e293b',
                             fontSize: '13px'
                           }}
                           placeholder="Seconds"
@@ -1261,10 +1688,10 @@ export default function LaboratoriosPage() {
                           style={{
                             width: '100%',
                             padding: '8px 12px',
-                            background: 'rgba(255,255,255,0.05)',
+                            background: 'white',
                             border: '1px solid rgba(255,255,255,0.2)',
                             borderRadius: '8px',
-                            color: 'white',
+                            color: '#1e293b',
                             fontSize: '13px'
                           }}
                         />
@@ -1338,10 +1765,10 @@ export default function LaboratoriosPage() {
                             style={{
                               width: '100%',
                               padding: '8px 12px',
-                              background: 'rgba(255,255,255,0.05)',
+                              background: 'white',
                               border: '1px solid rgba(255,255,255,0.2)',
                               borderRadius: '8px',
-                              color: 'white',
+                              color: '#1e293b',
                               fontSize: '13px'
                             }}
                           >
@@ -1429,6 +1856,880 @@ export default function LaboratoriosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Vista Previa del Juego */}
+      {showPreviewModal && previewLab && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            backdropFilter: 'blur(8px)',
+            padding: '20px'
+          }}
+          onClick={() => {
+            setShowPreviewModal(false)
+            if (timerInterval) clearInterval(timerInterval)
+          }}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1e2a3a 0%, #2d3748 100%)',
+              borderRadius: '24px',
+              padding: '0',
+              width: '90%',
+              maxWidth: '1200px',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              position: 'relative',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #1e2a3a 0%, #111827 100%)',
+              padding: '24px 32px',
+              borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    background: 'var(--color-primary-green)',
+                    borderRadius: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '32px',
+                    boxShadow: '0 8px 16px rgba(46, 168, 83, 0.3)'
+                  }}>
+                    {previewLab.icono}
+                  </div>
+                  <div>
+                    <h2 style={{ color: 'white', margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700' }}>
+                      {previewLab.titulo}
+                    </h2>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                      }}>
+                        🎮 {previewLab.tipo_juego}
+                      </span>
+                      <span style={{
+                        background: 'rgba(139, 92, 246, 0.2)',
+                        color: '#c4b5fd',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                      }}>
+                        📊 {previewLab.nivel}
+                      </span>
+                      <span style={{
+                        background: 'rgba(34, 197, 94, 0.2)',
+                        color: '#86efac',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                      }}>
+                        📝 {previewWords.length} words
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowPreviewModal(false)
+                    if (timerInterval) clearInterval(timerInterval)
+                  }}
+                  style={{
+                    background: '#ff3b3b',
+                    border: 'none',
+                    color: 'white',
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontSize: '24px',
+                    fontWeight: '300',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = '#ff4f4f'
+                    e.currentTarget.style.transform = 'scale(1.05)'
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = '#ff3b3b'
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Content - Scrollable */}
+            <div style={{ padding: '32px', overflowY: 'auto' }}>
+
+            {/* Game Configuration Info */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '16px',
+              padding: '20px',
+              marginBottom: '24px',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>
+                Game Configuration
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '16px'
+              }}>
+                <div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px', marginBottom: '4px' }}>
+                    Base Experience
+                  </div>
+                  <div style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>
+                    {previewLab.experiencia_base} XP
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px', marginBottom: '4px' }}>
+                    Perfect Bonus
+                  </div>
+                  <div style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>
+                    +{previewLab.experiencia_bonus_perfecto} XP
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px', marginBottom: '4px' }}>
+                    Min. Score to Pass
+                  </div>
+                  <div style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>
+                    {previewLab.puntuacion_minima_aprobar}%
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px', marginBottom: '4px' }}>
+                    Time Limit
+                  </div>
+                  <div style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>
+                    {previewLab.tiempo_limite ? `${previewLab.tiempo_limite}s` : 'Unlimited'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px', marginBottom: '4px' }}>
+                    Attempts Allowed
+                  </div>
+                  <div style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>
+                    {previewLab.intentos_permitidos || 'Unlimited'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px', marginBottom: '4px' }}>
+                    Hints Enabled
+                  </div>
+                  <div style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>
+                    {previewLab.permitir_pistas ? 'Yes' : 'No'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Game Visual Preview */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '32px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <h3 style={{ color: 'white', fontSize: '18px', fontWeight: '700', marginBottom: '24px', textAlign: 'center' }}>
+                Play the Game
+              </h3>
+              <div style={{
+                background: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '16px',
+                padding: '40px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '24px',
+                minHeight: '400px',
+                border: '2px solid rgba(255, 255, 255, 0.05)',
+                width: '100%'
+              }}>
+                {previewWords.length === 0 ? (
+                  <div style={{ color: 'rgba(255, 255, 255, 0.5)', textAlign: 'center' }}>
+                    No words available for this game
+                  </div>
+                ) : (
+                  <>
+                    {/* Hangman Game */}
+                    {previewLab.tipo_juego_code === 'hangman' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px', width: '100%' }}>
+                        {/* Status mejorado */}
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+                          <div style={{
+                            background: 'rgba(59, 130, 246, 0.2)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            color: '#60a5fa',
+                            fontSize: '14px',
+                            fontWeight: '600'
+                          }}>
+                            ✓ {completedWords.size}/{previewWords.length} Completed
+                          </div>
+                          <div style={{ color: 'white', fontSize: '16px' }}>
+                            Word {currentWordIndex + 1} of {previewWords.length}
+                          </div>
+                          {previewLab?.tiempo_limite && (
+                            <div style={{
+                              background: gameTimer > (previewLab.tiempo_limite * 60 * 0.8) ? 'rgba(239, 68, 68, 0.2)' : gameStarted ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                              border: `1px solid ${gameTimer > (previewLab.tiempo_limite * 60 * 0.8) ? 'rgba(239, 68, 68, 0.3)' : gameStarted ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.2)'}`,
+                              borderRadius: '8px',
+                              padding: '8px 16px',
+                              color: gameTimer > (previewLab.tiempo_limite * 60 * 0.8) ? '#f87171' : gameStarted ? '#4ade80' : 'rgba(255, 255, 255, 0.6)',
+                              fontSize: '14px',
+                              fontWeight: '600'
+                            }}>
+                              {formatTime(gameTimer, previewLab.tiempo_limite)}
+                            </div>
+                          )}
+                          <div style={{ color: wrongGuesses >= 4 ? '#ef4444' : 'var(--color-primary-green)', fontSize: '16px', fontWeight: '600' }}>
+                            Errors: {wrongGuesses}/{maxWrongGuesses}
+                          </div>
+                          <button
+                            onClick={resetGame}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.3)',
+                              border: '2px solid rgba(239, 68, 68, 0.5)',
+                              borderRadius: '8px',
+                              padding: '8px 16px',
+                              color: '#ff6b6b',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e: any) => {
+                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.5)'
+                              e.currentTarget.style.transform = 'scale(1.05)'
+                            }}
+                            onMouseOut={(e: any) => {
+                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)'
+                              e.currentTarget.style.transform = 'scale(1)'
+                            }}
+                          >
+                            Reset
+                          </button>
+                        </div>
+
+                        {/* Hangman SVG - dinámico según errores */}
+                        <svg width="160" height="180" style={{ filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))' }}>
+                          {/* La horca se dibuja progresivamente según maxWrongGuesses */}
+                          {/* Si maxWrongGuesses = 10: horca completa (4 partes) + cuerpo (6 partes) */}
+                          {/* Si maxWrongGuesses = 6: solo cuerpo (sin horca) */}
+                          
+                          {/* Horca progresiva (solo si maxWrongGuesses > 6) */}
+                          {maxWrongGuesses > 6 && wrongGuesses >= 1 && <line x1="20" y1="170" x2="80" y2="170" stroke="var(--color-primary-green)" strokeWidth="4" />}
+                          {maxWrongGuesses > 6 && wrongGuesses >= 2 && <line x1="40" y1="170" x2="40" y2="20" stroke="var(--color-primary-green)" strokeWidth="4" />}
+                          {maxWrongGuesses > 6 && wrongGuesses >= 3 && <line x1="40" y1="20" x2="100" y2="20" stroke="var(--color-primary-green)" strokeWidth="4" />}
+                          {maxWrongGuesses > 6 && wrongGuesses >= 4 && <line x1="100" y1="20" x2="100" y2="40" stroke="var(--color-primary-green)" strokeWidth="3" />}
+                          
+                          {/* Horca fija (si maxWrongGuesses <= 6) */}
+                          {maxWrongGuesses <= 6 && (
+                            <>
+                              <line x1="20" y1="170" x2="80" y2="170" stroke="var(--color-primary-green)" strokeWidth="4" />
+                              <line x1="40" y1="170" x2="40" y2="20" stroke="var(--color-primary-green)" strokeWidth="4" />
+                              <line x1="40" y1="20" x2="100" y2="20" stroke="var(--color-primary-green)" strokeWidth="4" />
+                              <line x1="100" y1="20" x2="100" y2="40" stroke="var(--color-primary-green)" strokeWidth="3" />
+                            </>
+                          )}
+                          
+                          {/* Cuerpo - ajustado según si hay horca progresiva o no */}
+                          {wrongGuesses >= (maxWrongGuesses > 6 ? 5 : 1) && <circle cx="100" cy="55" r="15" stroke="#ef4444" strokeWidth="3" fill="none" />}
+                          {wrongGuesses >= (maxWrongGuesses > 6 ? 6 : 2) && <line x1="100" y1="70" x2="100" y2="120" stroke="#ef4444" strokeWidth="3" />}
+                          {wrongGuesses >= (maxWrongGuesses > 6 ? 7 : 3) && <line x1="100" y1="85" x2="75" y2="100" stroke="#ef4444" strokeWidth="3" />}
+                          {wrongGuesses >= (maxWrongGuesses > 6 ? 8 : 4) && <line x1="100" y1="85" x2="125" y2="100" stroke="#ef4444" strokeWidth="3" />}
+                          {wrongGuesses >= (maxWrongGuesses > 6 ? 9 : 5) && <line x1="100" y1="120" x2="80" y2="150" stroke="#ef4444" strokeWidth="3" />}
+                          {wrongGuesses >= (maxWrongGuesses > 6 ? 10 : 6) && <line x1="100" y1="120" x2="120" y2="150" stroke="#ef4444" strokeWidth="3" />}
+                        </svg>
+
+                        {/* Hint */}
+                        <div style={{ 
+                          background: 'rgba(59, 130, 246, 0.2)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '12px',
+                          padding: '16px 24px',
+                          color: '#93c5fd',
+                          fontSize: '16px',
+                          textAlign: 'center',
+                          maxWidth: '500px'
+                        }}>
+                          {currentWord?.significado || 'No definition available'}
+                        </div>
+
+                        {/* Word Display */}
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '8px',
+                          fontSize: '36px',
+                          fontFamily: 'monospace',
+                          fontWeight: '700',
+                          letterSpacing: '4px'
+                        }}>
+                          {wordToGuess.split('').map((letter: string, i: number) => (
+                            <div key={i} style={{
+                              minWidth: letter === ' ' ? '20px' : '40px',
+                              height: '50px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderBottom: letter === ' ' ? 'none' : '3px solid rgba(255, 255, 255, 0.3)',
+                              color: 'white'
+                            }}>
+                              {letter === ' ' ? '' : (guessedLetters.includes(letter) || !/[a-z]/.test(letter) ? letter : '')}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Game Over / Success Messages */}
+                        {isGameOver && (
+                          <div style={{
+                            background: 'rgba(239, 68, 68, 0.2)',
+                            border: '2px solid #ef4444',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            color: 'white',
+                            fontSize: '18px',
+                            fontWeight: '600',
+                            textAlign: 'center'
+                          }}>
+                            Game Over! The word was: <span style={{ color: '#fca5a5' }}>{wordToGuess}</span>
+                          </div>
+                        )}
+                        
+                        {isWordComplete && !isGameOver && (
+                          <div style={{
+                            background: 'rgba(34, 197, 94, 0.2)',
+                            border: '2px solid var(--color-primary-green)',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            color: 'white',
+                            fontSize: '18px',
+                            fontWeight: '600',
+                            textAlign: 'center'
+                          }}>
+                            Correct! Well done!
+                          </div>
+                        )}
+
+                        {/* Instrucción y navegación */}
+                        {!isGameOver && !isWordComplete && !completedWords.has(currentWordIndex) && (
+                          <div style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '12px',
+                            padding: '16px 24px',
+                            color: '#93c5fd',
+                            fontSize: '15px',
+                            textAlign: 'center',
+                            maxWidth: '500px'
+                          }}>
+                            💡 Use your keyboard to guess letters
+                          </div>
+                        )}
+
+                        {completedWords.has(currentWordIndex) && (
+                          <div style={{
+                            background: 'rgba(34, 197, 94, 0.2)',
+                            border: '2px solid var(--color-primary-green)',
+                            borderRadius: '12px',
+                            padding: '16px 24px',
+                            color: '#4ade80',
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            textAlign: 'center'
+                          }}>
+                            ✓ Word already completed!
+                          </div>
+                        )}
+
+                        {/* Botones de navegación */}
+                        <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
+                          <button
+                            onClick={prevWord}
+                            disabled={currentWordIndex === 0}
+                            style={{
+                              padding: '12px 24px',
+                              background: currentWordIndex === 0 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.3)',
+                              color: currentWordIndex === 0 ? 'rgba(255, 255, 255, 0.3)' : 'white',
+                              border: '2px solid rgba(255, 255, 255, 0.2)',
+                              borderRadius: '12px',
+                              fontSize: '15px',
+                              fontWeight: '600',
+                              cursor: currentWordIndex === 0 ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginRight: '8px', transform: 'rotate(180deg)' }}>
+                              <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
+                            </svg>
+                            Previous Word
+                          </button>
+                          
+                          <button
+                            onClick={nextWord}
+                            disabled={currentWordIndex === previewWords.length - 1}
+                            style={{
+                              padding: '12px 24px',
+                              background: currentWordIndex === previewWords.length - 1 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(34, 197, 94, 0.3)',
+                              color: currentWordIndex === previewWords.length - 1 ? 'rgba(255, 255, 255, 0.3)' : 'white',
+                              border: '2px solid rgba(255, 255, 255, 0.2)',
+                              borderRadius: '12px',
+                              fontSize: '15px',
+                              fontWeight: '600',
+                              cursor: currentWordIndex === previewWords.length - 1 ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            Next Word
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginLeft: '8px' }}>
+                              <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
+                            </svg>
+                          </button>
+                        </div>
+
+                        {(isWordComplete || isGameOver) && currentWordIndex === previewWords.length - 1 && (
+                          <div style={{
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            fontSize: '16px',
+                            marginTop: '20px',
+                            textAlign: 'center'
+                          }}>
+                            You've completed all words!
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Otros juegos */}
+                    {previewLab.tipo_juego_code === 'memory' && (
+                      <div>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(4, 1fr)',
+                          gap: '12px',
+                          marginBottom: '24px'
+                        }}>
+                          {createMemoryCards().map((card, index) => (
+                            <div
+                              key={index}
+                              onClick={() => handleMemoryCardClick(index)}
+                              style={{
+                                aspectRatio: '1',
+                                background: flippedCards.includes(index) || matchedPairs.includes(index)
+                                  ? (card.type === 'word' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(139, 92, 246, 0.3)')
+                                  : 'rgba(255, 255, 255, 0.1)',
+                                border: '2px solid rgba(255, 255, 255, 0.2)',
+                                borderRadius: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: matchedPairs.includes(index) ? 'default' : 'pointer',
+                                transition: 'all 0.3s',
+                                opacity: matchedPairs.includes(index) ? 0.5 : 1,
+                                transform: flippedCards.includes(index) ? 'rotateY(180deg)' : 'rotateY(0)'
+                              }}
+                            >
+                              {(flippedCards.includes(index) || matchedPairs.includes(index)) ? (
+                                <div style={{
+                                  color: 'white',
+                                  fontSize: '14px',
+                                  fontWeight: '600',
+                                  textAlign: 'center',
+                                  padding: '8px',
+                                  transform: 'rotateY(180deg)'
+                                }}>
+                                  {card.content}
+                                </div>
+                              ) : (
+                                <div style={{
+                                  color: 'rgba(255, 255, 255, 0.4)',
+                                  fontSize: '32px'
+                                }}>
+                                  ?
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {matchedPairs.length === 16 && (
+                          <div style={{
+                            background: 'rgba(34, 197, 94, 0.2)',
+                            border: '2px solid rgba(34, 197, 94, 0.5)',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            textAlign: 'center',
+                            color: '#22c55e',
+                            fontSize: '18px',
+                            fontWeight: '700'
+                          }}>
+                            🎉 ¡Felicidades! Encontraste todos los pares
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {previewLab.tipo_juego_code === 'matching' && (
+                      <div>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '32px',
+                          marginBottom: '24px'
+                        }}>
+                          {/* Columna de palabras */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {previewWords.slice(0, 10).map((word, idx) => {
+                              const isMatched = matchedLines.some(m => m.wordIdx === idx)
+                              const isSelected = selectedMatching.word === idx
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => handleMatchingClick(idx, 'word')}
+                                  disabled={isMatched}
+                                  style={{
+                                    padding: '16px',
+                                    background: isMatched
+                                      ? 'rgba(34, 197, 94, 0.3)'
+                                      : isSelected
+                                      ? 'rgba(59, 130, 246, 0.5)'
+                                      : 'rgba(255, 255, 255, 0.1)',
+                                    border: '2px solid ' + (isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.2)'),
+                                    borderRadius: '12px',
+                                    color: 'white',
+                                    fontSize: '16px',
+                                    fontWeight: '600',
+                                    cursor: isMatched ? 'default' : 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  {word.palabra}
+                                </button>
+                              )
+                            })}
+                          </div>
+
+                          {/* Columna de significados */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {previewWords.slice(0, 10).sort(() => Math.random() - 0.5).map((word, idx) => {
+                              const originalIdx = previewWords.indexOf(word)
+                              const isMatched = matchedLines.some(m => m.meaningIdx === originalIdx)
+                              const isSelected = selectedMatching.meaning === originalIdx
+                              return (
+                                <button
+                                  key={originalIdx}
+                                  onClick={() => handleMatchingClick(originalIdx, 'meaning')}
+                                  disabled={isMatched}
+                                  style={{
+                                    padding: '16px',
+                                    background: isMatched
+                                      ? 'rgba(34, 197, 94, 0.3)'
+                                      : isSelected
+                                      ? 'rgba(139, 92, 246, 0.5)'
+                                      : 'rgba(255, 255, 255, 0.1)',
+                                    border: '2px solid ' + (isSelected ? '#8b5cf6' : 'rgba(255, 255, 255, 0.2)'),
+                                    borderRadius: '12px',
+                                    color: 'white',
+                                    fontSize: '16px',
+                                    cursor: isMatched ? 'default' : 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  {word.significado}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {matchedLines.length === 10 && (
+                          <div style={{
+                            background: 'rgba(34, 197, 94, 0.2)',
+                            border: '2px solid rgba(34, 197, 94, 0.5)',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            textAlign: 'center',
+                            color: '#22c55e',
+                            fontSize: '18px',
+                            fontWeight: '700'
+                          }}>
+                            🎉 ¡Perfecto! Emparejaste todas las palabras
+                          </div>
+                        )}
+
+                        <div style={{
+                          marginTop: '16px',
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: '14px',
+                          textAlign: 'center'
+                        }}>
+                          Matches: {matchedLines.length} / 10
+                        </div>
+                      </div>
+                    )}
+
+                    {previewLab.tipo_juego_code === 'fill_blanks' && (
+                      <div>
+                        <div style={{ marginBottom: '24px' }}>
+                          {previewWords.slice(0, 10).map((word, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                padding: '16px',
+                                marginBottom: '12px'
+                              }}
+                            >
+                              <div style={{
+                                color: 'rgba(255, 255, 255, 0.6)',
+                                fontSize: '14px',
+                                marginBottom: '8px'
+                              }}>
+                                {word.significado}
+                              </div>
+                              <input
+                                type="text"
+                                value={fillBlankAnswers[idx] || ''}
+                                onChange={(e) => {
+                                  const newAnswers = [...fillBlankAnswers]
+                                  newAnswers[idx] = e.target.value
+                                  setFillBlankAnswers(newAnswers)
+                                }}
+                                disabled={fillBlankResults.length > 0}
+                                placeholder="Type the word..."
+                                style={{
+                                  width: '100%',
+                                  padding: '12px 16px',
+                                  background: fillBlankResults[idx] !== undefined
+                                    ? (fillBlankResults[idx] ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)')
+                                    : 'rgba(255, 255, 255, 0.1)',
+                                  border: '2px solid ' + (
+                                    fillBlankResults[idx] !== undefined
+                                      ? (fillBlankResults[idx] ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)')
+                                      : 'rgba(255, 255, 255, 0.2)'
+                                  ),
+                                  borderRadius: '8px',
+                                  color: 'white',
+                                  fontSize: '16px',
+                                  fontWeight: '600'
+                                }}
+                              />
+                              {fillBlankResults[idx] !== undefined && !fillBlankResults[idx] && (
+                                <div style={{
+                                  marginTop: '8px',
+                                  color: '#22c55e',
+                                  fontSize: '14px',
+                                  fontWeight: '600'
+                                }}>
+                                  Correct answer: {word.palabra}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                          {fillBlankResults.length === 0 ? (
+                            <button
+                              onClick={checkFillBlanks}
+                              style={{
+                                padding: '12px 32px',
+                                background: 'rgba(59, 130, 246, 0.3)',
+                                border: '2px solid rgba(59, 130, 246, 0.5)',
+                                borderRadius: '12px',
+                                color: '#60a5fa',
+                                fontSize: '16px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Check Answers
+                            </button>
+                          ) : (
+                            <>
+                              <div style={{
+                                padding: '16px 24px',
+                                background: 'rgba(59, 130, 246, 0.2)',
+                                border: '2px solid rgba(59, 130, 246, 0.3)',
+                                borderRadius: '12px',
+                                color: 'white',
+                                fontSize: '16px',
+                                fontWeight: '700'
+                              }}>
+                                Score: {fillBlankResults.filter(r => r).length} / {fillBlankResults.length}
+                              </div>
+                              <button
+                                onClick={resetFillBlanks}
+                                style={{
+                                  padding: '12px 32px',
+                                  background: 'rgba(168, 85, 247, 0.3)',
+                                  border: '2px solid rgba(168, 85, 247, 0.5)',
+                                  borderRadius: '12px',
+                                  color: '#c084fc',
+                                  fontSize: '16px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Try Again
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {fillBlankResults.length > 0 && fillBlankResults.every(r => r) && (
+                          <div style={{
+                            background: 'rgba(34, 197, 94, 0.2)',
+                            border: '2px solid rgba(34, 197, 94, 0.5)',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            textAlign: 'center',
+                            color: '#22c55e',
+                            fontSize: '18px',
+                            fontWeight: '700',
+                            marginTop: '16px'
+                          }}>
+                            🎉 ¡Perfecto! Todas las respuestas son correctas
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!['hangman', 'memory', 'matching', 'fill_blanks'].includes(previewLab.tipo_juego_code) && (
+                      <div style={{ textAlign: 'center', color: 'rgba(255, 255, 255, 0.6)' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>{previewLab.icono}</div>
+                        <div style={{ fontSize: '20px', marginBottom: '8px', color: 'white' }}>{previewLab.tipo_juego}</div>
+                        <div>Interactive preview coming soon for this game type</div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Words List */}
+            <div>
+              <h3 style={{ color: 'white', fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
+                Words in this Game ({previewWords.length})
+              </h3>
+              
+              {previewWords.length === 0 ? (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  textAlign: 'center',
+                  color: '#fca5a5'
+                }}>
+                  No words found for this game
+                </div>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                  gap: '12px',
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  padding: '4px'
+                }}>
+                  {previewWords.map((word: any, index: number) => {
+                    // Manejar diferentes estructuras de palabras
+                    const palabra = word.palabra || word.word || word.en || word.english || 'Unknown';
+                    const significado = word.significado || word.meaning || word.es || word.spanish || word.translation || 'No definition';
+                    const definicion = word.definition || word.def || null;
+                    
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
+                          e.currentTarget.style.transform = 'translateY(-2px)'
+                          e.currentTarget.style.borderColor = 'var(--color-primary-green)'
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                          e.currentTarget.style.transform = 'translateY(0)'
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                        }}
+                      >
+                        <div style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
+                          {palabra}
+                        </div>
+                        <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '14px' }}>
+                          {significado}
+                        </div>
+                        {definicion && (
+                          <div style={{
+                            marginTop: '8px',
+                            paddingTop: '8px',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            fontSize: '12px',
+                            fontStyle: 'italic'
+                          }}>
+                            {definicion}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
     </>
   )

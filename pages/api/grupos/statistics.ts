@@ -101,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Progreso por tipo de juego
     const progressByGameType: any = await query(
       `SELECT 
-        j.nombre_juego AS tipo_juego,
+        j.nombre AS tipo_juego,
         j.icono,
         COUNT(DISTINCT r.id_resultado) AS total_attempts,
         AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END) AS average_score
@@ -110,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       INNER JOIN juegos j ON act.id_juego_actividad_fk = j.id_juego
       INNER JOIN alumno_grupo ag ON r.id_alumno_resultado_fk = ag.id_alumno_ag_fk
       WHERE ag.id_grupo_ag_fk = ? AND ag.activo = 1
-      GROUP BY j.id_juego, j.nombre_juego, j.icono
+      GROUP BY j.id_juego, j.nombre, j.icono
       ORDER BY total_attempts DESC`,
       [id_grupo]
     );
@@ -156,7 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `SELECT 
         act.id_actividad,
         act.titulo AS nombre_laboratorio,
-        j.nombre_juego AS tipo_juego,
+        j.nombre AS tipo_juego,
         actg.publicado,
         actg.fecha_asignacion
       FROM actividad_grupo actg

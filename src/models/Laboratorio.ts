@@ -30,6 +30,7 @@ export interface Laboratorio {
 }
 
 export interface LaboratorioDetallado extends Laboratorio {
+  id_laboratorio?: number; // Alias para id_actividad
   tipo_juego: string;
   tipo_juego_code: string;
   icono?: string;
@@ -37,6 +38,7 @@ export interface LaboratorioDetallado extends Laboratorio {
   alumnos_participantes: number;
   promedio_puntuacion?: number;
   completados: number;
+  vocabulario_nombre?: string; // Nombre del archivo de vocabulario
 }
 
 export interface CreateLaboratorioData {

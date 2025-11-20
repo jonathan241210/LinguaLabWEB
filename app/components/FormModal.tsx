@@ -29,6 +29,7 @@ interface FormModalProps {
   submitButtonLabel?: string;
   successMessage?: string;
   onSuccess?: () => void;
+  initialValues?: Record<string, string>;
 }
 
 export default function FormModal({
@@ -40,14 +41,22 @@ export default function FormModal({
   submitButtonLabel = 'Add',
   successMessage = 'Registration successful',
   onSuccess,
+  initialValues = {},
 }: FormModalProps) {
-  const [formData, setFormData] = React.useState<Record<string, string>>({});
+  const [formData, setFormData] = React.useState<Record<string, string>>(initialValues);
   const [showConfirmation, setShowConfirmation] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [visiblePasswords, setVisiblePasswords] = React.useState<Record<string, boolean>>({});
   const [selectOptions, setSelectOptions] = React.useState<Record<string, SelectOption[]>>({});
   const [renderOpen, setRenderOpen] = React.useState(false);
   const [isExiting, setIsExiting] = React.useState(false);
+
+  // Actualizar formData cuando cambien initialValues
+  React.useEffect(() => {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      setFormData(initialValues);
+    }
+  }, [initialValues]);
 
   // Controlar montaje para permitir animación de salida
   React.useEffect(() => {
@@ -528,7 +537,16 @@ export default function FormModal({
                 );
                 displayValue = selectedOption?.label || formData[field.name];
               } else if (field.type === 'password') {
-                displayValue = `••••••••${formData['matricula'] && formData[field.name] === formData['matricula'] ? ' (Student ID)' : ''}`;
+                // Si el campo está vacío y no es requerido, mostrar que se mantiene la anterior
+                if (!formData[field.name] || formData[field.name].trim() === '') {
+                  if (!field.required) {
+                    displayValue = 'Previous password (unchanged)';
+                  } else {
+                    displayValue = '—';
+                  }
+                } else {
+                  displayValue = `••••••••${formData['matricula'] && formData[field.name] === formData['matricula'] ? ' (Student ID)' : ''}`;
+                }
               }
 
               return (
