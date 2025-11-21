@@ -160,18 +160,14 @@ export default function DashboardLayout({
       });
       if (res.ok) {
         const data = await res.json();
-        console.log('DashboardLayout - User data received:', data);
         if (data.success && data.user) {
           setUser(data.user);
           // Actualizar también en localStorage
           localStorage.setItem('user', JSON.stringify(data.user));
-          console.log('DashboardLayout - User updated in state and localStorage');
         }
-      } else {
-        console.error('DashboardLayout - Error fetching user:', res.status);
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      // Error fetching user data
     }
   };
 

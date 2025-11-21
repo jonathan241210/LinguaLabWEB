@@ -1,4 +1,4 @@
-import { validateDocenteCredentials, validateAdminCredentials } from '@/models/User';
+import { validateDocenteCredentials, validateAdminCredentials } from '@/src/models/User';
 import { generateAccessToken, generateTokenPair } from '@/lib/jwt';
 
 export interface LoginRequest {
