@@ -683,7 +683,7 @@ function GruposPage() {
                 <p style={{ fontSize:'11px', color:'rgba(255,255,255,0.7)', marginTop:'6px', margin:'6px 0 0 26px' }}>Check if all students in this group are currently doing an internship</p>
               </div>
               <div style={{ padding:'16px', backgroundColor:'rgba(255,255,255,0.1)', borderRadius:'12px', border:'1px solid rgba(255,255,255,0.2)' }}>
-                <h3 style={{ color:'white', fontSize:'14px', fontWeight:600, marginBottom:'12px' }}>📋 Cohort Data (Generation)</h3>
+                <h3 style={{ color:'white', fontSize:'14px', fontWeight:600, marginBottom:'12px' }}><i className="bi bi-clipboard"></i> Cohort Data (Generation)</h3>
                 <div style={{ marginBottom:'12px' }}>
                   <label style={{ color:'white', fontSize:'12px', fontWeight:600, display:'block', marginBottom:'6px' }}>Entry Year</label>
                   <input type='number' value={newGrupo.anio_ingreso} onChange={(e)=> setNewGrupo({ ...newGrupo, anio_ingreso:e.target.value })} required min={2020} max={2035} style={{ width:'100%', padding:'10px 12px', borderRadius:'8px', border:'2px solid var(--color-dark-blue)', fontSize:'13px', backgroundColor:'white', color:'#333' }} />
@@ -723,7 +723,7 @@ function GruposPage() {
       {showConfirmModal && (
         <div className={`llw-confirm-overlay ${confirmExiting ? 'llw-confirm-overlay-exit' : 'llw-confirm-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1001 }} onClick={()=> { setConfirmExiting(true); setTimeout(()=>{ setShowConfirmModal(false); setConfirmExiting(false); }, 220); }}>
           <div className={`llw-confirm-card ${confirmExiting ? 'llw-confirm-card-exit' : 'llw-confirm-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'20px', padding:'32px', width:'90%', maxWidth:'500px', maxHeight:'80vh', overflowY:'auto' }} onClick={(e)=> e.stopPropagation()}>
-            <h2 style={{ color:'white', fontSize:'22px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}>⚠️ Confirm Group Creation</h2>
+            <h2 style={{ color:'white', fontSize:'22px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}><i className="bi bi-exclamation-triangle-fill"></i> Confirm Group Creation</h2>
             <div style={{ backgroundColor:'rgba(255,255,255,0.1)', borderRadius:'12px', padding:'20px', marginBottom:'20px' }}>
               <h3 style={{ color:'white', fontSize:'16px', fontWeight:600, marginBottom:'12px' }}>Summary:</h3>
               <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}><strong>Group Number:</strong> {newGrupo.nombre}</p>
@@ -734,7 +734,7 @@ function GruposPage() {
               <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}><strong>Initial Level:</strong> {niveles.find(n => n.id_nivel == newGrupo.id_nivel_inicial_fk)?.nombre || 'N/A'}</p>
               <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}><strong>Total Students:</strong> {selectedStudents.length}</p>
               <div style={{ marginTop:'16px' }}>
-                <h4 style={{ color:'white', fontSize:'14px', fontWeight:600, marginBottom:'8px' }}>👥 Selected Students:</h4>
+                <h4 style={{ color:'white', fontSize:'14px', fontWeight:600, marginBottom:'8px' }}><i className="bi bi-people-fill"></i> Selected Students:</h4>
                 <div style={{ maxHeight:'200px', overflowY:'auto', backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'8px', padding:'12px' }}>
                   {alumnosDisponibles.filter(a => selectedStudents.includes(a.id_alumno)).map((alumno, idx) => (
                     <div key={alumno.id_alumno} style={{ padding:'8px', borderBottom: idx < selectedStudents.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none', fontSize:'13px', color:'white' }}>
@@ -795,7 +795,7 @@ function GruposPage() {
 
             {/* Student List */}
             <div style={{ backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'12px', padding:'16px' }}>
-              <h3 style={{ color:'white', fontSize:'16px', fontWeight:600, marginBottom:'12px' }}>👥 Students ({grupoDetail.alumnos?.length || 0})</h3>
+              <h3 style={{ color:'white', fontSize:'16px', fontWeight:600, marginBottom:'12px' }}><i className="bi bi-people-fill"></i> Students ({grupoDetail.alumnos?.length || 0})</h3>
               {!grupoDetail.alumnos || grupoDetail.alumnos.length === 0 ? (
                 <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', textAlign:'center', padding:'20px' }}>No students assigned yet</p>
               ) : (
@@ -838,7 +838,7 @@ function GruposPage() {
             {/* Group Basic Info */}
             <div style={{ backgroundColor:'rgba(147,51,234,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(147,51,234,0.4)' }}>
               <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'12px', display:'flex', alignItems:'center', gap:'8px' }}>
-                <span>👥</span> Group Information
+                <span><i className="bi bi-people-fill"></i></span> Group Information
               </h3>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'12px' }}>
                 <div>
@@ -888,7 +888,7 @@ function GruposPage() {
                 <div style={{ color:'rgba(255,255,255,0.8)', fontSize:'13px' }}>Labs Completed</div>
               </div>
               <div style={{ backgroundColor:'rgba(34,197,94,0.15)', borderRadius:'12px', padding:'16px', border:'2px solid rgba(34,197,94,0.4)', textAlign:'center' }}>
-                <div style={{ fontSize:'32px', marginBottom:'8px' }}>✅</div>
+                <div style={{ fontSize:'32px', marginBottom:'8px' }}><i className="bi bi-check-circle-fill"></i></div>
                 <div style={{ color:'#4ade80', fontSize:'28px', fontWeight:'bold', marginBottom:'4px' }}>
                   {selectedGroupStats.groupStats.total_labs_passed}
                 </div>
@@ -928,7 +928,7 @@ function GruposPage() {
             {selectedGroupStats.studentsNeedingHelp && selectedGroupStats.studentsNeedingHelp.length > 0 && (
               <div style={{ backgroundColor:'rgba(239,68,68,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(239,68,68,0.4)' }}>
                 <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
-                  <span>⚠️</span> Students Needing Support
+                  <span><i className="bi bi-exclamation-triangle-fill"></i></span> Students Needing Support
                 </h3>
                 <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
                   {selectedGroupStats.studentsNeedingHelp.map((student:any, idx:number) => (
@@ -1018,7 +1018,7 @@ function GruposPage() {
             {selectedGroupStats.assignedLabs && selectedGroupStats.assignedLabs.length > 0 && (
               <div style={{ backgroundColor:'rgba(20,184,166,0.15)', borderRadius:'12px', padding:'20px', border:'2px solid rgba(20,184,166,0.4)' }}>
                 <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
-                  <span>📋</span> Assigned Laboratories
+                  <span><i className="bi bi-clipboard"></i></span> Assigned Laboratories
                 </h3>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'12px', maxHeight:'300px', overflowY:'auto' }}>
                   {selectedGroupStats.assignedLabs.map((lab:any, idx:number) => (
@@ -1139,7 +1139,7 @@ function GruposPage() {
       {showConfirmRemoveStudent && studentToRemove && (
         <div className={`llw-confirm-overlay ${confirmRemoveStudentExiting ? 'llw-confirm-overlay-exit' : 'llw-confirm-overlay-enter'}`} style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1002 }} onClick={()=> { setConfirmRemoveStudentExiting(true); setTimeout(()=>{ setShowConfirmRemoveStudent(false); setConfirmRemoveStudentExiting(false); setStudentToRemove(null); }, 220); }}>
           <div className={`llw-confirm-card ${confirmRemoveStudentExiting ? 'llw-confirm-card-exit' : 'llw-confirm-card-enter'}`} style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'16px', padding:'28px', width:'90%', maxWidth:'450px' }} onClick={(e)=> e.stopPropagation()}>
-            <h2 style={{ color:'white', fontSize:'20px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}>⚠️ Confirm Remove Student</h2>
+            <h2 style={{ color:'white', fontSize:'20px', fontWeight:'bold', marginBottom:'16px', textAlign:'center' }}><i className="bi bi-exclamation-triangle-fill"></i> Confirm Remove Student</h2>
             <div style={{ backgroundColor:'rgba(255,59,59,0.15)', borderRadius:'10px', padding:'16px', marginBottom:'20px', border:'2px solid rgba(255,59,59,0.5)' }}>
               <p style={{ color:'rgba(255,255,255,0.9)', fontSize:'14px', margin:'8px 0' }}>
                 <strong>Student:</strong> {studentToRemove.nombre}

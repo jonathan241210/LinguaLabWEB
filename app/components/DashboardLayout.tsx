@@ -3,11 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import FormModal from './FormModal';
+import ProfileModal from './ProfileModal';
 
 interface User {
   id_usuario: number;
   nombre: string;
+  primer_apellido?: string;
+  segundo_apellido?: string;
   rol: string;
+  correo?: string;
 }
 
 export interface SelectOption {
@@ -82,6 +86,9 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState('');
+  const [showProfileSuccess, setShowProfileSuccess] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('sidebarCollapsed');
@@ -130,17 +137,43 @@ export default function DashboardLayout({
   // Usar menú personalizado si se pasa, sino usar menú por defecto del rol
   const finalMenuItems = menuItems || defaultMenuItems[roleType];
 
-  // Cargar datos del usuario desde localStorage
+  // Cargar datos del usuario desde localStorage y luego del servidor
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
       try {
         setUser(JSON.parse(userData));
+        // Cargar datos completos del servidor
+        fetchUserData();
       } catch {
         // Error al parsear
       }
     }
   }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      console.log('DashboardLayout - Fetching user data...');
+      const res = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log('DashboardLayout - User data received:', data);
+        if (data.success && data.user) {
+          setUser(data.user);
+          // Actualizar también en localStorage
+          localStorage.setItem('user', JSON.stringify(data.user));
+          console.log('DashboardLayout - User updated in state and localStorage');
+        }
+      } else {
+        console.error('DashboardLayout - Error fetching user:', res.status);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -625,6 +658,7 @@ export default function DashboardLayout({
           )}
           
           <button
+            onClick={() => setShowProfileModal(true)}
             style={{
               padding: '8px 16px',
               backgroundColor: 'var(--color-primary-green)',
@@ -671,6 +705,106 @@ export default function DashboardLayout({
           successMessage={formModal.successMessage}
           onSuccess={formModal.onSuccess}
         />
+      )}
+
+      {/* ProfileModal */}
+      {user && (
+        <ProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          onSuccess={(message) => {
+            setProfileSuccessMessage(message);
+            setShowProfileSuccess(true);
+          }}
+          onError={(message) => {
+            setProfileSuccessMessage(message);
+            setShowProfileSuccess(true);
+          }}
+          userInfo={{
+            nombre: user.nombre,
+            primer_apellido: user.primer_apellido || '',
+            segundo_apellido: user.segundo_apellido || '',
+            correo: user.correo || '',
+            rol: (user.rol === 'administrador' ? 'admin' : user.rol === 'docente' ? 'docente' : 'alumno') as 'admin' | 'docente' | 'alumno'
+          }}
+        />
+      )}
+
+      {/* Profile Success/Error Modal */}
+      {showProfileSuccess && (
+        <div
+          className="llw-message-overlay llw-message-overlay-enter"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001,
+          }}
+          onClick={() => setShowProfileSuccess(false)}
+        >
+          <div
+            className="llw-message-card llw-message-bounce-in"
+            style={{
+              backgroundColor: 'var(--color-dark-blue)',
+              borderRadius: '20px',
+              padding: '32px',
+              width: '90%',
+              maxWidth: '420px',
+              position: 'relative',
+              textAlign: 'center',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(46, 168, 83, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-green)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+            </div>
+            <h3 style={{ color: 'white', margin: '0 0 12px 0', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.5px' }}>{profileSuccessMessage}</h3>
+            <button
+              onClick={() => setShowProfileSuccess(false)}
+              style={{
+                padding: '12px 32px',
+                backgroundColor: 'var(--color-primary-green)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                width: '100%',
+                maxWidth: '200px',
+                marginTop: '12px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(46, 168, 83, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Animaciones CSS para modales */}

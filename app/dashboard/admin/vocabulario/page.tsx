@@ -1579,7 +1579,7 @@ export default function VocabularioPage() {
             className="upload-btn"
             onClick={() => setShowUploadModal(true)}
           >
-            ➕ Upload PDF
+            <i className="bi bi-plus"></i> Upload PDF
           </button>
         </div>
 
@@ -1719,7 +1719,7 @@ export default function VocabularioPage() {
                           </>
                         ) : (
                           <div className="no-units-message">
-                            <p>📋 This vocabulary is not organized into units yet</p>
+                            <p><i className="bi bi-clipboard"></i> This vocabulary is not organized into units yet</p>
                             <p style={{fontSize: '0.85rem', color: '#6b7280'}}>
                               {Array.isArray(vocab.contenido) ? `${vocab.contenido.length} words available` : 'No words found'}
                             </p>
@@ -2239,7 +2239,7 @@ export default function VocabularioPage() {
               </button>
 
               <div style={{marginBottom: '24px', paddingRight: '40px'}}>
-                <h2 style={{color: 'white', fontSize: '24px', fontWeight: 'bold', margin: '0 0 16px 0'}}>📋 Confirm Vocabulary Import</h2>
+                <h2 style={{color: 'white', fontSize: '24px', fontWeight: 'bold', margin: '0 0 16px 0'}}><i className="bi bi-clipboard"></i> Confirm Vocabulary Import</h2>
                 <div style={{display: 'flex', gap: '12px', marginBottom: '16px'}}>
                   <span style={{
                     backgroundColor: 'var(--color-primary-green)',
@@ -2762,7 +2762,7 @@ export default function VocabularioPage() {
                 margin: '0 0 24px 0',
                 paddingRight: '40px',
               }}>
-                ⚠️ Confirm Deletion
+                <i className="bi bi-exclamation-triangle-fill"></i> Confirm Deletion
               </h2>
 
               {/* Mensaje */}

@@ -1015,7 +1015,7 @@ function AlumnosPage() {
                           </div>
                           <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', display: 'flex', gap: '12px' }}>
                             <span>⭐ {lab.experiencia_ganada} XP</span>
-                            <span>⏱️ {Math.floor(lab.tiempo_transcurrido / 60)}m {lab.tiempo_transcurrido % 60}s</span>
+                            <span><i className="bi bi-stopwatch"></i> {Math.floor(lab.tiempo_transcurrido / 60)}m {lab.tiempo_transcurrido % 60}s</span>
                             <span>📅 {new Date(lab.fecha_completado).toLocaleDateString()}</span>
                           </div>
                         </div>
@@ -1041,7 +1041,7 @@ function AlumnosPage() {
                   )}
                   {selectedStudentStats.weakWords && selectedStudentStats.weakWords.length > 0 && (
                     <div style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(239,68,68,0.3)' }}>
-                      <h3 style={{ color: '#ef4444', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>⚠️ Needs Practice</h3>
+                      <h3 style={{ color: '#ef4444', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}><i className="bi bi-exclamation-triangle-fill"></i> Needs Practice</h3>
                       <div style={{ display: 'grid', gap: '8px' }}>
                         {selectedStudentStats.weakWords.map((word: any, idx: number) => (
                           <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1056,7 +1056,7 @@ function AlumnosPage() {
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'white' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}><i className="bi bi-exclamation-triangle-fill"></i></div>
                 <p style={{ fontSize: '18px', fontWeight: 600 }}>No statistics available</p>
               </div>
             )}

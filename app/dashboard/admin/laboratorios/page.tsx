@@ -72,17 +72,17 @@ export default function LaboratoriosPage() {
   const [selectedVocabulario, setSelectedVocabulario] = useState<number | null>(null)
   const [selectedUnidades, setSelectedUnidades] = useState<number[]>([])
   const [numeroPalabras, setNumeroPalabras] = useState(10)
-  const [modoSeleccion, setModoSeleccion] = useState<'todas' | 'por_unidad' | 'random'>('por_unidad')
+  const [modoSeleccion, setModoSeleccion] = useState<'todas' | 'por_unidad' | 'random'>('random') // Random por defecto
   
-  // Estados de configuración avanzada
+  // Estados de configuración avanzada (valores por defecto activados)
   const [experienciaBase, setExperienciaBase] = useState(100)
   const [experienciaBonus, setExperienciaBonus] = useState(50)
   const [puntuacionMinima, setPuntuacionMinima] = useState(70)
-  const [tiempoLimite, setTiempoLimite] = useState<number | null>(null)
-  const [intentosPermitidos, setIntentosPermitidos] = useState<number | null>(null)
+  const [tiempoLimite, setTiempoLimite] = useState<number | null>(600) // 10 minutos por defecto
+  const [intentosPermitidos, setIntentosPermitidos] = useState<number | null>(3)
   const [permitirPistas, setPermitirPistas] = useState(true)
   const [penalizacionPista, setPenalizacionPista] = useState(5)
-  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [autoRefresh, setAutoRefresh] = useState(true) // Activado por defecto
   const [refreshFrequency, setRefreshFrequency] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly')
   const [refreshType, setRefreshType] = useState<'palabras' | 'dificultad' | 'ambos'>('palabras')
   
@@ -267,15 +267,15 @@ export default function LaboratoriosPage() {
     setUnidades([])
     setShowAdvancedConfig(false)
     
-    // Reset advanced config
+    // Reset advanced config (valores por defecto activados)
     setExperienciaBase(100)
     setExperienciaBonus(50)
     setPuntuacionMinima(70)
-    setTiempoLimite(null)
-    setIntentosPermitidos(null)
+    setTiempoLimite(600)
+    setIntentosPermitidos(3)
     setPermitirPistas(true)
     setPenalizacionPista(5)
-    setAutoRefresh(false)
+    setAutoRefresh(true)
     setRefreshFrequency('weekly')
     setRefreshType('palabras')
   }
@@ -553,7 +553,7 @@ export default function LaboratoriosPage() {
   }
 
   const handleDeleteLab = async (id: number) => {
-    if (!confirm('⚠️ Are you sure you want to delete this laboratory?\n\nThis action cannot be undone and will remove all associated data.')) {
+    if (!confirm('Are you sure you want to delete this laboratory?\n\nThis action cannot be undone and will remove all associated data.')) {
       return
     }
 
@@ -637,7 +637,7 @@ export default function LaboratoriosPage() {
         }}>
           <div>
             <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '0 0 8px 0' }}>
-              🎮 Interactive Laboratories
+              <i className="bi bi-controller"></i> Interactive Laboratories
             </h1>
             <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
               Create engaging activities based on vocabulary for students
@@ -752,7 +752,7 @@ export default function LaboratoriosPage() {
             textAlign: 'center',
             border: '2px dashed #e2e8f0'
           }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎮</div>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}><i className="bi bi-controller"></i></div>
             <h3 style={{ color: '#1e293b', marginBottom: '8px' }}>No laboratories yet</h3>
             <p style={{ color: '#64748b', marginBottom: '24px' }}>
               Create your first interactive laboratory for students
@@ -864,10 +864,10 @@ export default function LaboratoriosPage() {
                   border: '1px solid #bbf7d0'
                 }}>
                   <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '600', marginBottom: '4px' }}>
-                    📖 {(lab as any).vocabulario_nombre || 'Unknown vocabulary'}
+                    <i className="bi bi-book"></i> {(lab as any).vocabulario_nombre || 'Unknown vocabulary'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#16a34a' }}>
-                    📚 {(() => {
+                    <i className="bi bi-bookshelf"></i> {(() => {
                       const unidadesData = (lab as any).unidades_seleccionadas;
                       if (!unidadesData) return 'All units';
                       try {
@@ -1269,7 +1269,7 @@ export default function LaboratoriosPage() {
                               fontSize: '24px',
                               flexShrink: 0,
                               border: isSelected ? '1px solid rgba(255,255,255,0.3)' : 'none'
-                            }}>📖</div>
+                            }}><i className="bi bi-book"></i></div>
                             {isSelected && (
                               <div style={{ 
                                 marginLeft: 'auto', 
@@ -1308,7 +1308,7 @@ export default function LaboratoriosPage() {
                               fontWeight: '600',
                               border: isSelected ? '1px solid rgba(255,255,255,0.3)' : 'none'
                             }}>
-                              ✨ {vocab.nivel}
+                              <i className="bi bi-stars"></i> {vocab.nivel}
                             </span>
                             <span style={{
                               background: isSelected 
@@ -1336,7 +1336,7 @@ export default function LaboratoriosPage() {
                 <div style={{ marginBottom: '48px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
                     <h3 style={{ color: 'white', fontSize: '19px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px', letterSpacing: '-0.5px', margin: 0 }}>
-                      <span style={{ fontSize: '24px' }}>📚</span>
+                      <span style={{ fontSize: '24px' }}><i className="bi bi-bookshelf"></i></span>
                       Step 4: Select Units
                     </h3>
                     <button
@@ -1478,7 +1478,7 @@ export default function LaboratoriosPage() {
                               fontSize: '13px',
                               fontWeight: '500'
                             }}>
-                              📝 {unidad.palabras_ids.length} words included
+                              <i className="bi bi-pencil-square"></i> {unidad.palabras_ids.length} words included
                             </div>
                           </div>
                         </div>
@@ -1542,7 +1542,7 @@ export default function LaboratoriosPage() {
                       e.currentTarget.style.background = 'linear-gradient(135deg, rgba(46,168,83,0.1), rgba(46,168,83,0.05))'
                     }}
                   >
-                    <span>{showAdvancedConfig ? '▼' : '▶'}</span>
+                    <span>{showAdvancedConfig ? <i className="bi bi-caret-down-fill"></i> : <i className="bi bi-caret-right-fill"></i>}</span>
                     <span> Advanced Configuration</span>
                   </button>
                 </div>
@@ -1564,7 +1564,7 @@ export default function LaboratoriosPage() {
                   {/* Experience & Scoring */}
                   <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <h4 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', marginBottom: '16px' }}>
-                      🏆 Experience & Scoring
+                      <i className="bi bi-trophy"></i> Experience & Scoring
                     </h4>
                     
                     <div style={{ marginBottom: '16px' }}>
@@ -1616,7 +1616,7 @@ export default function LaboratoriosPage() {
                   {/* Time Configuration */}
                   <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <h4 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', marginBottom: '16px' }}>
-                      ⏱️ Time Limit
+                      <i className="bi bi-stopwatch"></i> Time Limit
                     </h4>
                     
                     <div style={{ marginBottom: '12px' }}>
@@ -1660,7 +1660,7 @@ export default function LaboratoriosPage() {
                   {/* Attempts Configuration */}
                   <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <h4 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', marginBottom: '16px' }}>
-                      🔄 Attempts
+                      <i className="bi bi-arrow-repeat"></i> Attempts
                     </h4>
                     
                     <div style={{ marginBottom: '12px' }}>
@@ -1702,7 +1702,7 @@ export default function LaboratoriosPage() {
                   {/* Hints Configuration */}
                   <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <h4 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', marginBottom: '16px' }}>
-                      💡 Hints System
+                      <i className="bi bi-lightbulb-fill"></i> Hints System
                     </h4>
                     
                     <div style={{ marginBottom: '16px' }}>
@@ -1737,7 +1737,7 @@ export default function LaboratoriosPage() {
                   {/* Auto-Refresh Configuration */}
                   <div>
                     <h4 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', marginBottom: '16px' }}>
-                      🔄 Auto-Refresh
+                      <i className="bi bi-arrow-repeat"></i> Auto-Refresh
                     </h4>
                     
                     <div style={{ marginBottom: '16px' }}>
@@ -1930,7 +1930,7 @@ export default function LaboratoriosPage() {
                         fontSize: '13px',
                         fontWeight: '600'
                       }}>
-                        🎮 {previewLab.tipo_juego}
+                        <i className="bi bi-controller"></i> {previewLab.tipo_juego}
                       </span>
                       <span style={{
                         background: 'rgba(139, 92, 246, 0.2)',
@@ -1940,7 +1940,7 @@ export default function LaboratoriosPage() {
                         fontSize: '13px',
                         fontWeight: '600'
                       }}>
-                        📊 {previewLab.nivel}
+                        <i className="bi bi-bar-chart-fill"></i> {previewLab.nivel}
                       </span>
                       <span style={{
                         background: 'rgba(34, 197, 94, 0.2)',
@@ -1950,7 +1950,7 @@ export default function LaboratoriosPage() {
                         fontSize: '13px',
                         fontWeight: '600'
                       }}>
-                        📝 {previewWords.length} words
+                        <i className="bi bi-pencil-square"></i> {previewWords.length} words
                       </span>
                     </div>
                   </div>
@@ -2261,7 +2261,7 @@ export default function LaboratoriosPage() {
                             textAlign: 'center',
                             maxWidth: '500px'
                           }}>
-                            💡 Use your keyboard to guess letters
+                            <i className="bi bi-lightbulb-fill"></i> Use your keyboard to guess letters
                           </div>
                         )}
 
@@ -2401,7 +2401,7 @@ export default function LaboratoriosPage() {
                             fontSize: '18px',
                             fontWeight: '700'
                           }}>
-                            🎉 ¡Felicidades! Encontraste todos los pares
+                            <i className="bi bi-stars"></i> ¡Felicidades! Encontraste todos los pares
                           </div>
                         )}
                       </div>
@@ -2493,7 +2493,7 @@ export default function LaboratoriosPage() {
                             fontSize: '18px',
                             fontWeight: '700'
                           }}>
-                            🎉 ¡Perfecto! Emparejaste todas las palabras
+                            <i className="bi bi-stars"></i> ¡Perfecto! Emparejaste todas las palabras
                           </div>
                         )}
 
@@ -2631,7 +2631,7 @@ export default function LaboratoriosPage() {
                             fontWeight: '700',
                             marginTop: '16px'
                           }}>
-                            🎉 ¡Perfecto! Todas las respuestas son correctas
+                            <i className="bi bi-stars"></i> ¡Perfecto! Todas las respuestas son correctas
                           </div>
                         )}
                       </div>
