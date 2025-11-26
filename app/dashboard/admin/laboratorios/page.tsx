@@ -38,6 +38,8 @@ interface Laboratorio {
   nivel: string
   numero_palabras: number
   publicado: boolean
+  published_scope?: 'teachers' | 'students' | 'admin_only'
+  notes?: string
   experiencia_base: number
   experiencia_bonus_perfecto: number
   puntuacion_minima_aprobar: number
@@ -73,6 +75,10 @@ export default function LaboratoriosPage() {
   const [selectedUnidades, setSelectedUnidades] = useState<number[]>([])
   const [numeroPalabras, setNumeroPalabras] = useState(10)
   const [modoSeleccion, setModoSeleccion] = useState<'todas' | 'por_unidad' | 'random'>('random') // Random por defecto
+  
+  // Estados nuevos para publishing
+  const [publishedScope, setPublishedScope] = useState<'teachers' | 'students' | 'admin_only'>('admin_only')
+  const [notes, setNotes] = useState('')
   
   // Estados de configuración avanzada (valores por defecto activados)
   const [experienciaBase, setExperienciaBase] = useState(100)
@@ -110,6 +116,36 @@ export default function LaboratoriosPage() {
     type?: 'success' | 'error' | 'warning' | 'info'
     onClose: () => void
   }>({ isOpen: false, message: '', onClose: () => {} })
+
+  // Estados para modal de confirmación de delete
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean
+    labId: number | null
+    labTitle: string
+  }>({ isOpen: false, labId: null, labTitle: '' })
+  const [deleteExiting, setDeleteExiting] = useState(false)
+
+  // Estados para modal de assign groups
+  const [assignGroupsModal, setAssignGroupsModal] = useState<{
+    isOpen: boolean
+    labId: number | null
+    labTitle: string
+  }>({ isOpen: false, labId: null, labTitle: '' })
+  const [assignGroupsExiting, setAssignGroupsExiting] = useState(false)
+  const [selectedCuatrimestres, setSelectedCuatrimestres] = useState<number[]>([])
+  const [availableCuatrimestres, setAvailableCuatrimestres] = useState<{id: number, nombre: string}[]>([])
+
+  // Estados para edición en preview
+  const [isEditingPreview, setIsEditingPreview] = useState(false)
+  const [previewExiting, setPreviewExiting] = useState(false)
+  const [previewEditValues, setPreviewEditValues] = useState({
+    experiencia_base: 100,
+    experiencia_bonus_perfecto: 50,
+    puntuacion_minima_aprobar: 70,
+    tiempo_limite: 600,
+    intentos_permitidos: 3,
+    permitir_pistas: true
+  })
 
   useEffect(() => {
     fetchData()
@@ -213,6 +249,9 @@ export default function LaboratoriosPage() {
           unidades_seleccionadas: modoSeleccion === 'por_unidad' ? selectedUnidades : null,
           modo_seleccion: modoSeleccion,
           nivel: vocabularios.find(v => v.id_vocabulario === selectedVocabulario)?.nivel || 'A1',
+          // Nuevos campos de publicación
+          published_scope: publishedScope,
+          notes: notes,
           // Configuración avanzada
           experiencia_base: experienciaBase,
           experiencia_bonus_perfecto: experienciaBonus,
@@ -267,6 +306,10 @@ export default function LaboratoriosPage() {
     setUnidades([])
     setShowAdvancedConfig(false)
     
+    // Reset publishing fields
+    setPublishedScope('admin_only')
+    setNotes('')
+    
     // Reset advanced config (valores por defecto activados)
     setExperienciaBase(100)
     setExperienciaBonus(50)
@@ -280,19 +323,19 @@ export default function LaboratoriosPage() {
     setRefreshType('palabras')
   }
 
-  const handleTogglePublish = async (id: number, currentStatus: boolean) => {
+  const handleChangeVisibility = async (id: number, newScope: 'teachers' | 'students' | 'admin_only') => {
     try {
-      const res = await fetch('/api/laboratorios/toggle-publish', {
+      const res = await fetch('/api/laboratorios/update-scope', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_laboratorio: id, publicado: !currentStatus })
+        body: JSON.stringify({ id_laboratorio: id, published_scope: newScope })
       })
 
       if (res.ok) {
         fetchData()
         setSuccessModal({
           isOpen: true,
-          message: `Laboratory ${!currentStatus ? 'published' : 'unpublished'} successfully!`,
+          message: `Visibility updated to ${newScope === 'teachers' ? 'Teachers' : 'Admin Only'}!`,
           type: 'success',
           onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
         })
@@ -300,7 +343,7 @@ export default function LaboratoriosPage() {
     } catch (error) {
       setSuccessModal({
         isOpen: true,
-        message: 'Error updating laboratory status',
+        message: 'Error updating visibility',
         type: 'error',
         onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
       })
@@ -336,6 +379,17 @@ export default function LaboratoriosPage() {
         console.log('All word keys:', data.palabras?.[0] ? Object.keys(data.palabras[0]) : 'No words')
         setPreviewLab(lab)
         setPreviewWords(data.palabras || [])
+        
+        // Inicializar valores de edición con los datos actuales del laboratorio
+        setPreviewEditValues({
+          experiencia_base: lab.experiencia_base,
+          experiencia_bonus_perfecto: lab.experiencia_bonus_perfecto,
+          puntuacion_minima_aprobar: lab.puntuacion_minima_aprobar,
+          tiempo_limite: lab.tiempo_limite || 0,
+          intentos_permitidos: lab.intentos_permitidos || 6,
+          permitir_pistas: lab.permitir_pistas
+        })
+        
         setShowPreviewModal(true)
       } else {
         setSuccessModal({
@@ -552,28 +606,35 @@ export default function LaboratoriosPage() {
     setFillBlankResults([])
   }
 
-  const handleDeleteLab = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this laboratory?\n\nThis action cannot be undone and will remove all associated data.')) {
-      return
-    }
+  const handleDeleteLab = async (id: number, title: string) => {
+    setDeleteModal({ isOpen: true, labId: id, labTitle: title })
+  }
+
+  const confirmDeleteLab = async () => {
+    if (!deleteModal.labId) return
 
     try {
       const res = await fetch('/api/laboratorios/delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_laboratorio: id })
+        body: JSON.stringify({ id_laboratorio: deleteModal.labId })
       })
 
       const data = await res.json()
 
       if (res.ok) {
-        fetchData()
-        setSuccessModal({
-          isOpen: true,
-          message: 'Laboratory deleted successfully!',
-          type: 'success',
-          onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
-        })
+        setDeleteExiting(true)
+        setTimeout(() => {
+          setDeleteModal({ isOpen: false, labId: null, labTitle: '' })
+          setDeleteExiting(false)
+          fetchData()
+          setSuccessModal({
+            isOpen: true,
+            message: 'Laboratory deleted successfully!',
+            type: 'success',
+            onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+          })
+        }, 200)
       } else {
         setSuccessModal({
           isOpen: true,
@@ -587,6 +648,119 @@ export default function LaboratoriosPage() {
       setSuccessModal({
         isOpen: true,
         message: 'Error deleting laboratory',
+        type: 'error',
+        onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+      })
+    }
+  }
+
+  const handleUpdatePreview = async () => {
+    if (!previewLab) return
+
+    try {
+      const res = await fetch('/api/laboratorios/update-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_laboratorio: previewLab.id_laboratorio,
+          ...previewEditValues
+        })
+      })
+
+      if (res.ok) {
+        setIsEditingPreview(false)
+        // Recargar los datos del laboratorio actual
+        const previewRes = await fetch(`/api/laboratorios/preview?id=${previewLab.id_laboratorio}`)
+        if (previewRes.ok) {
+          const data = await previewRes.json()
+          // Actualizar el lab en la lista principal
+          fetchData()
+          // Actualizar previewLab con los nuevos valores
+          setPreviewLab(prev => prev ? { 
+            ...prev, 
+            ...previewEditValues 
+          } : null)
+        }
+        setSuccessModal({
+          isOpen: true,
+          message: '✅ Configuration updated successfully!',
+          type: 'success',
+          onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+        })
+      } else {
+        throw new Error('Failed to update')
+      }
+    } catch (error) {
+      setSuccessModal({
+        isOpen: true,
+        message: '❌ Error updating configuration',
+        type: 'error',
+        onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+      })
+    }
+  }
+
+  const handleOpenAssignGroups = async (id: number, title: string) => {
+    setAssignGroupsModal({ isOpen: true, labId: id, labTitle: title })
+    // Fetch available cuatrimestres
+    try {
+      const res = await fetch('/api/catalogs/cuatrimestres')
+      if (res.ok) {
+        const data = await res.json()
+        // El API devuelve { success: true, data: [...] }
+        const cuatrimestres = data.data || []
+        setAvailableCuatrimestres(cuatrimestres.map((c: any) => ({
+          id: c.id_cuatrimestre,
+          nombre: c.nombre
+        })))
+      }
+    } catch (error) {
+      console.error('Error fetching cuatrimestres:', error)
+    }
+  }
+
+  const handleAssignGroups = async () => {
+    if (!assignGroupsModal.labId || selectedCuatrimestres.length === 0) {
+      setSuccessModal({
+        isOpen: true,
+        message: '⚠️ Please select at least one cuatrimestre',
+        type: 'warning',
+        onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+      })
+      return
+    }
+
+    try {
+      const res = await fetch('/api/laboratorios/assign-groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_laboratorio: assignGroupsModal.labId,
+          cuatrimestres: selectedCuatrimestres
+        })
+      })
+
+      if (res.ok) {
+        setAssignGroupsExiting(true)
+        setTimeout(() => {
+          setAssignGroupsModal({ isOpen: false, labId: null, labTitle: '' })
+          setSelectedCuatrimestres([])
+          setAssignGroupsExiting(false)
+          setSuccessModal({
+            isOpen: true,
+            message: '✅ Groups assigned successfully!',
+            type: 'success',
+            onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
+          })
+          fetchData()
+        }, 200)
+      } else {
+        throw new Error('Failed to assign groups')
+      }
+    } catch (error) {
+      setSuccessModal({
+        isOpen: true,
+        message: '❌ Error assigning groups',
         type: 'error',
         onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
       })
@@ -938,24 +1112,20 @@ export default function LaboratoriosPage() {
                   >
                     Preview
                   </button>
-                  <button
-                    onClick={(e) => {
+                  <select
+                    value={lab.published_scope || 'admin_only'}
+                    onChange={(e) => {
                       e.stopPropagation()
-                      handleTogglePublish(lab.id_laboratorio, lab.publicado)
+                      handleChangeVisibility(lab.id_laboratorio, e.target.value as 'teachers' | 'students' | 'admin_only')
                     }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.05)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
+                    onClick={(e) => e.stopPropagation()}
                     style={{
                       flex: 1,
                       padding: '10px',
-                      background: lab.publicado ? '#fef3c7' : 'var(--color-success)',
-                      color: lab.publicado ? 'var(--color-warning)' : 'white',
+                      background: lab.published_scope === 'teachers' ? 'var(--color-success)' : 
+                                  lab.published_scope === 'students' ? '#3b82f6' :
+                                  '#fef3c7',
+                      color: lab.published_scope === 'admin_only' ? 'var(--color-warning)' : 'white',
                       border: 'none',
                       borderRadius: '8px',
                       fontSize: '13px',
@@ -964,12 +1134,14 @@ export default function LaboratoriosPage() {
                       transition: 'var(--transition-fast)'
                     }}
                   >
-                    {lab.publicado ? 'Unpublish' : 'Publish'}
-                  </button>
+                    <option value="admin_only">🔒 Admin Only</option>
+                    <option value="teachers">👨‍🏫 Teachers</option>
+                    <option value="students">👨‍🎓 Students (Lab)</option>
+                  </select>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // TODO: Implement assign to groups
+                      handleOpenAssignGroups(lab.id_laboratorio, lab.titulo)
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.transform = 'scale(1.05)'
@@ -997,7 +1169,7 @@ export default function LaboratoriosPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleDeleteLab(lab.id_laboratorio)
+                      handleDeleteLab(lab.id_laboratorio, lab.titulo)
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.transform = 'scale(1.05)'
@@ -1514,6 +1686,93 @@ export default function LaboratoriosPage() {
                 </div>
               )}
 
+              {/* Paso 6: Publishing Settings */}
+              {selectedPlantilla && selectedVocabulario && (
+                <div style={{ marginBottom: '32px', padding: '20px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '20px' }}>🌐</span>
+                    Step 6: Publishing Settings
+                  </h3>
+                  
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', marginBottom: '12px', display: 'block' }}>
+                      Publish to:
+                    </label>
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      {(['admin_only', 'teachers', 'students'] as const).map((scope) => (
+                        <div
+                          key={scope}
+                          onClick={() => setPublishedScope(scope)}
+                          style={{
+                            padding: '14px 16px',
+                            background: publishedScope === scope 
+                              ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0.15) 100%)'
+                              : 'rgba(255, 255, 255, 0.05)',
+                            border: publishedScope === scope 
+                              ? '2px solid rgba(59, 130, 246, 0.6)'
+                              : '2px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px'
+                          }}
+                        >
+                          <div style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            border: publishedScope === scope ? '2px solid #3b82f6' : '2px solid rgba(255, 255, 255, 0.3)',
+                            background: publishedScope === scope ? '#3b82f6' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            {publishedScope === scope && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }} />}
+                          </div>
+                          <div>
+                            <div style={{ color: 'white', fontSize: '14px', fontWeight: '600', marginBottom: '2px' }}>
+                              {scope === 'admin_only' && '🔒 Admin Only'}
+                              {scope === 'teachers' && '👨‍🏫 Teachers'}
+                              {scope === 'students' && '🎓 Students (Lab)'}
+                            </div>
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '12px' }}>
+                              {scope === 'admin_only' && 'Only admins can see this activity'}
+                              {scope === 'teachers' && 'Teachers can assign to their groups'}
+                              {scope === 'students' && 'Available in student lab section'}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>
+                      Notes (optional):
+                    </label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Add any notes or instructions for this activity..."
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '2px solid rgba(255,255,255,0.15)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        color: 'white',
+                        fontSize: '13px',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Advanced Configuration Toggle */}
               {selectedPlantilla && selectedVocabulario && (
                 <div style={{ marginBottom: '24px' }}>
@@ -1874,14 +2133,19 @@ export default function LaboratoriosPage() {
             backdropFilter: 'blur(8px)',
             padding: '20px'
           }}
-          onClick={() => {
+        className={`llw-modal-overlay ${previewExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`}
+        onClick={() => {
+          setPreviewExiting(true)
+          if (timerInterval) clearInterval(timerInterval)
+          setTimeout(() => {
             setShowPreviewModal(false)
-            if (timerInterval) clearInterval(timerInterval)
-          }}
+            setPreviewExiting(false)
+          }, 200)
+        }}
         >
           <div
             style={{
-              background: 'linear-gradient(135deg, #1e2a3a 0%, #2d3748 100%)',
+              background: 'var(--color-dark-blue)',
               borderRadius: '24px',
               padding: '0',
               width: '90%',
@@ -1895,6 +2159,7 @@ export default function LaboratoriosPage() {
               flexDirection: 'column'
             }}
             onClick={(e) => e.stopPropagation()}
+            className={`llw-modal-card ${previewExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
           >
             {/* Header */}
             <div style={{ 
@@ -1955,39 +2220,344 @@ export default function LaboratoriosPage() {
                     </div>
                   </div>
                 </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setIsEditingPreview(!isEditingPreview)}
+                    style={{
+                      background: isEditingPreview ? 'rgba(255,255,255,0.15)' : 'var(--color-primary-green)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '0 16px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = isEditingPreview ? 'rgba(255,255,255,0.2)' : 'var(--color-primary-green-dark)'
+                      e.currentTarget.style.transform = 'scale(1.05)'
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = isEditingPreview ? 'rgba(255,255,255,0.15)' : 'var(--color-primary-green)'
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                    <i className={`bi ${isEditingPreview ? 'bi-x-circle' : 'bi-gear-fill'}`}></i>
+                    {isEditingPreview ? 'Cancel' : 'Edit Config'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPreviewExiting(true)
+                      setIsEditingPreview(false)
+                      if (timerInterval) clearInterval(timerInterval)
+                      setTimeout(() => {
+                        setShowPreviewModal(false)
+                        setPreviewExiting(false)
+                      }, 200)
+                    }}
+                    style={{
+                      background: '#ff3b3b',
+                      border: 'none',
+                      color: 'white',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontSize: '24px',
+                      fontWeight: '300',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = '#ff4f4f'
+                      e.currentTarget.style.transform = 'scale(1.05)'
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = '#ff3b3b'
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Edit Configuration Panel */}
+            {isEditingPreview && (
+              <div style={{
+                padding: '24px 32px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <h3 style={{
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <i className="bi bi-sliders"></i> Edit Configuration
+                </h3>
+                
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '16px',
+                  marginBottom: '20px'
+                }}>
+                  {/* Experiencia Base */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#cbd5e1',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      <i className="bi bi-star-fill"></i> Base Experience
+                    </label>
+                    <input
+                      type="number"
+                      value={previewEditValues.experiencia_base}
+                      onChange={(e) => setPreviewEditValues(prev => ({
+                        ...prev,
+                        experiencia_base: parseInt(e.target.value) || 0
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Bonus Perfecto */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#cbd5e1',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      <i className="bi bi-award-fill"></i> Perfect Bonus XP
+                    </label>
+                    <input
+                      type="number"
+                      value={previewEditValues.experiencia_bonus_perfecto}
+                      onChange={(e) => setPreviewEditValues(prev => ({
+                        ...prev,
+                        experiencia_bonus_perfecto: parseInt(e.target.value) || 0
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Puntuación Mínima */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#cbd5e1',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      <i className="bi bi-check-circle-fill"></i> Min Score to Pass
+                    </label>
+                    <input
+                      type="number"
+                      value={previewEditValues.puntuacion_minima_aprobar}
+                      onChange={(e) => setPreviewEditValues(prev => ({
+                        ...prev,
+                        puntuacion_minima_aprobar: parseInt(e.target.value) || 0
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Tiempo Límite */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#cbd5e1',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      <i className="bi bi-clock-fill"></i> Time Limit (seconds)
+                    </label>
+                    <input
+                      type="number"
+                      value={previewEditValues.tiempo_limite}
+                      onChange={(e) => setPreviewEditValues(prev => ({
+                        ...prev,
+                        tiempo_limite: parseInt(e.target.value) || 0
+                      }))}
+                      placeholder="0 = No limit"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Intentos Permitidos */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#cbd5e1',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      <i className="bi bi-arrow-repeat"></i> Allowed Attempts
+                    </label>
+                    <input
+                      type="number"
+                      value={previewEditValues.intentos_permitidos}
+                      onChange={(e) => setPreviewEditValues(prev => ({
+                        ...prev,
+                        intentos_permitidos: parseInt(e.target.value) || 1
+                      }))}
+                      min="1"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Permitir Pistas */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#cbd5e1',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      <i className="bi bi-lightbulb-fill"></i> Allow Hints
+                    </label>
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      padding: '10px 0'
+                    }}>
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: '#cbd5e1',
+                        cursor: 'pointer'
+                      }}>
+                        <input
+                          type="radio"
+                          checked={previewEditValues.permitir_pistas === true}
+                          onChange={() => setPreviewEditValues(prev => ({
+                            ...prev,
+                            permitir_pistas: true
+                          }))}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        Yes
+                      </label>
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: '#cbd5e1',
+                        cursor: 'pointer'
+                      }}>
+                        <input
+                          type="radio"
+                          checked={previewEditValues.permitir_pistas === false}
+                          onChange={() => setPreviewEditValues(prev => ({
+                            ...prev,
+                            permitir_pistas: false
+                          }))}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        No
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Button */}
                 <button
-                  onClick={() => {
-                    setShowPreviewModal(false)
-                    if (timerInterval) clearInterval(timerInterval)
-                  }}
+                  onClick={handleUpdatePreview}
                   style={{
-                    background: '#ff3b3b',
+                    width: '100%',
+                    padding: '12px',
+                    background: 'var(--color-primary-green)',
                     border: 'none',
-                    color: 'white',
-                    width: '40px',
-                    height: '40px',
                     borderRadius: '12px',
+                    color: 'white',
+                    fontSize: '15px',
+                    fontWeight: '600',
                     cursor: 'pointer',
-                    fontSize: '24px',
-                    fontWeight: '300',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    gap: '8px',
                     transition: 'all 0.2s'
                   }}
                   onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#ff4f4f'
-                    e.currentTarget.style.transform = 'scale(1.05)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(46, 168, 83, 0.4)'
+                    e.currentTarget.style.background = 'var(--color-primary-green-dark)'
                   }}
                   onMouseOut={(e) => {
-                    e.currentTarget.style.background = '#ff3b3b'
-                    e.currentTarget.style.transform = 'scale(1)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                    e.currentTarget.style.background = 'var(--color-primary-green)'
                   }}
                 >
-                  ✕
+                  <i className="bi bi-check-circle-fill"></i> Save Configuration
                 </button>
               </div>
-            </div>
+            )}
 
             {/* Content - Scrollable */}
             <div style={{ padding: '32px', overflowY: 'auto' }}>
@@ -2726,6 +3296,401 @@ export default function LaboratoriosPage() {
                 </div>
               )}
             </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div
+          className={`llw-modal-overlay ${deleteExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+          onClick={() => {
+            setDeleteExiting(true)
+            setTimeout(() => {
+              setDeleteModal({ isOpen: false, labId: null, labTitle: '' })
+              setDeleteExiting(false)
+            }, 200)
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`llw-modal-card ${deleteExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
+            style={{
+              background: 'var(--color-dark-blue)',
+              borderRadius: '20px',
+              padding: '32px',
+              maxWidth: '480px',
+              width: '90%',
+              border: '2px solid rgba(239, 68, 68, 0.3)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              position: 'relative'
+            }}
+          >
+            {/* Botón X */}
+            <button
+              onClick={() => {
+                setDeleteExiting(true)
+                setTimeout(() => {
+                  setDeleteModal({ isOpen: false, labId: null, labTitle: '' })
+                  setDeleteExiting(false)
+                }, 200)
+              }}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: '#ff3b3b',
+                border: 'none',
+                color: 'white',
+                fontSize: '24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'transform 0.25s, box-shadow 0.25s, background-color 0.25s',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
+                e.currentTarget.style.boxShadow = '0 6px 14px rgba(0,0,0,0.35)'
+                e.currentTarget.style.backgroundColor = '#ff4f4f'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1) rotate(0deg)'
+                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.backgroundColor = '#ff3b3b'
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)'
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
+              }}
+            >
+              ✕
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                margin: '0 auto 16px',
+                background: 'rgba(239, 68, 68, 0.2)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 16px rgba(239, 68, 68, 0.3)',
+                border: '3px solid rgba(239, 68, 68, 0.5)'
+              }}>
+                <span style={{ fontSize: '40px' }}>⚠️</span>
+              </div>
+              <h3 style={{ color: 'white', fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>
+                Delete Laboratory?
+              </h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px', marginBottom: '16px' }}>
+                Are you sure you want to delete <span style={{ color: '#ef4444', fontWeight: '600' }}>"{deleteModal.labTitle}"</span>?
+              </p>
+              <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '14px' }}>
+                This action cannot be undone and will remove all associated data permanently.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  setDeleteExiting(true)
+                  setTimeout(() => {
+                    setDeleteModal({ isOpen: false, labId: null, labTitle: '' })
+                    setDeleteExiting(false)
+                  }, 200)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteLab}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  background: '#ff3b3b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(255, 59, 59, 0.3)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 59, 59, 0.4)'
+                  e.currentTarget.style.background = '#ff4f4f'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 59, 59, 0.3)'
+                  e.currentTarget.style.background = '#ff3b3b'
+                }}
+              >
+                Delete Laboratory
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Groups Modal */}
+      {assignGroupsModal.isOpen && (
+        <div
+          className={`llw-modal-overlay ${assignGroupsExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+          onClick={() => {
+            setAssignGroupsExiting(true)
+            setTimeout(() => {
+              setAssignGroupsModal({ isOpen: false, labId: null, labTitle: '' })
+              setSelectedCuatrimestres([])
+              setAssignGroupsExiting(false)
+            }, 200)
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`llw-modal-card ${assignGroupsExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
+            style={{
+              background: 'var(--color-dark-blue)',
+              borderRadius: '20px',
+              padding: '32px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              border: '2px solid rgba(46, 168, 83, 0.3)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              position: 'relative'
+            }}
+          >
+            {/* Botón X */}
+            <button
+              onClick={() => {
+                setAssignGroupsExiting(true)
+                setTimeout(() => {
+                  setAssignGroupsModal({ isOpen: false, labId: null, labTitle: '' })
+                  setSelectedCuatrimestres([])
+                  setAssignGroupsExiting(false)
+                }, 200)
+              }}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: '#ff3b3b',
+                border: 'none',
+                color: 'white',
+                fontSize: '24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'transform 0.25s, box-shadow 0.25s, background-color 0.25s',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
+                e.currentTarget.style.boxShadow = '0 6px 14px rgba(0,0,0,0.35)'
+                e.currentTarget.style.backgroundColor = '#ff4f4f'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1) rotate(0deg)'
+                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.backgroundColor = '#ff3b3b'
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.9) rotate(0deg)'
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)'
+              }}
+            >
+              ✕
+            </button>
+
+            <h3 style={{ color: 'white', fontSize: '24px', fontWeight: '700', marginBottom: '8px', paddingRight: '40px' }}>
+              📚 Assign to Groups
+            </h3>
+            <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px', marginBottom: '24px' }}>
+              Select cuatrimestres to assign <span style={{ color: '#3b82f6', fontWeight: '600' }}>"{assignGroupsModal.labTitle}"</span>
+            </p>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '600', marginBottom: '12px', display: 'block' }}>
+                Select Cuatrimestres:
+              </label>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {availableCuatrimestres.map((cuatrimestre) => {
+                  const isSelected = selectedCuatrimestres.includes(cuatrimestre.id)
+                  return (
+                    <div
+                      key={cuatrimestre.id}
+                      onClick={() => {
+                        setSelectedCuatrimestres(prev =>
+                          isSelected
+                            ? prev.filter(id => id !== cuatrimestre.id)
+                            : [...prev, cuatrimestre.id]
+                        )
+                      }}
+                      style={{
+                        padding: '16px',
+                        background: isSelected
+                          ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.15) 100%)'
+                          : 'rgba(255, 255, 255, 0.05)',
+                        border: isSelected
+                          ? '2px solid rgba(59, 130, 246, 0.6)'
+                          : '2px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                      onMouseOver={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                        }
+                      }}
+                    >
+                      <span style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>
+                        {cuatrimestre.nombre}
+                      </span>
+                      {isSelected && (
+                        <span style={{ color: '#3b82f6', fontSize: '20px', fontWeight: 'bold' }}>✓</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  setAssignGroupsExiting(true)
+                  setTimeout(() => {
+                    setAssignGroupsModal({ isOpen: false, labId: null, labTitle: '' })
+                    setSelectedCuatrimestres([])
+                    setAssignGroupsExiting(false)
+                  }, 200)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignGroups}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  background: 'var(--color-primary-green)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(46, 168, 83, 0.3)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(46, 168, 83, 0.4)'
+                  e.currentTarget.style.background = 'var(--color-primary-green-dark)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(46, 168, 83, 0.3)'
+                  e.currentTarget.style.background = 'var(--color-primary-green)'
+                }}
+              >
+                Assign to {selectedCuatrimestres.length} Cuatrimestre{selectedCuatrimestres.length !== 1 ? 's' : ''}
+              </button>
             </div>
           </div>
         </div>

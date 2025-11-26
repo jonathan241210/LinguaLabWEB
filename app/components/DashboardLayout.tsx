@@ -889,7 +889,7 @@ export default function DashboardLayout({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 1001,
+              zIndex: 10002,
             }}
             onClick={() => {
               setSuccessExiting(true);

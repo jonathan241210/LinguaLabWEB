@@ -27,6 +27,8 @@ export class LaboratorioService {
         j.tipo_juego AS tipo_juego_code,
         j.icono,
         a.publicado,
+        a.published_scope,
+        a.notes,
         a.experiencia_base,
         a.experiencia_bonus_perfecto,
         a.puntuacion_minima_aprobar,
@@ -280,6 +282,10 @@ export class LaboratorioService {
         modo_seleccion,
         id_docente_actividad_fk,
         publicado,
+        published_scope,
+        notes,
+        visible_on_desktop,
+        visible_on_mobile,
         experiencia_base,
         experiencia_bonus_perfecto,
         puntuacion_minima_aprobar,
@@ -294,7 +300,7 @@ export class LaboratorioService {
         refresh_frequency,
         refresh_type,
         ultima_actualizacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?, ?, ?, NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?, ?, ?, NOW())
     `;
 
     console.log('=== ANTES DE INSERTAR EN DB ===');
@@ -313,6 +319,11 @@ export class LaboratorioService {
       JSON.stringify(palabrasSeleccionadas),
       data.modo_seleccion,
       data.creado_por || null,
+      data.published_scope !== 'admin_only' ? true : false, // Auto-publish para cualquier cosa que no sea admin_only
+      data.published_scope || 'admin_only',
+      data.notes || null,
+      data.published_scope === 'students' ? true : null, // visible_on_desktop (solo students)
+      data.published_scope === 'students' ? false : null, // visible_on_mobile (solo students = false)
       data.experiencia_base || 100,
       data.experiencia_bonus_perfecto || 50,
       data.puntuacion_minima_aprobar || 70,
@@ -327,7 +338,20 @@ export class LaboratorioService {
       data.refresh_type || 'palabras'
     ]);
 
-    return (result as any).insertId;
+    const id_actividad = (result as any).insertId;
+
+    // Si se especificaron unidades, crear relación en juego_unidad
+    if (data.unidades_seleccionadas && data.unidades_seleccionadas.length > 0) {
+      const insertUnidadPromises = data.unidades_seleccionadas.map((id_unidad: number) => 
+        query(
+          'INSERT INTO juego_unidad (id_juego_ju_fk, id_unidad_ju_fk) VALUES (?, ?)',
+          [id_actividad, id_unidad]
+        )
+      );
+      await Promise.all(insertUnidadPromises);
+    }
+
+    return id_actividad;
   }
 
   /**

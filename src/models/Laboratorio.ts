@@ -52,6 +52,8 @@ export interface CreateLaboratorioData {
   nivel: string;
   creado_por?: number;
   tipo_creador?: string;
+  published_scope?: 'teachers' | 'students' | 'admin_only';
+  notes?: string;
   experiencia_base?: number;
   experiencia_bonus_perfecto?: number;
   puntuacion_minima_aprobar?: number;
