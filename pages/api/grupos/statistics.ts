@@ -98,6 +98,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       [id_grupo]
     );
 
+    // Todos los estudiantes del grupo
+    const allStudents: any = await query(
+      `SELECT 
+        a.id_alumno,
+        a.matricula,
+        CONCAT(u.nombre, ' ', u.primer_apellido, ' ', u.segundo_apellido) AS nombre_completo,
+        IFNULL(COUNT(DISTINCT CASE WHEN r.completado = 1 THEN r.id_resultado END), 0) AS labs_completados,
+        IFNULL(AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END), 0) AS promedio,
+        IFNULL(SUM(r.experiencia_ganada), 0) AS total_experiencia
+      FROM alumnos a
+      INNER JOIN usuarios u ON a.id_usuario_alumno_fk = u.id_usuario
+      INNER JOIN alumno_grupo ag ON a.id_alumno = ag.id_alumno_ag_fk
+      LEFT JOIN resultados r ON a.id_alumno = r.id_alumno_resultado_fk
+      WHERE ag.id_grupo_ag_fk = ? AND ag.activo = 1
+      GROUP BY a.id_alumno, a.matricula, u.nombre, u.primer_apellido, u.segundo_apellido
+      ORDER BY promedio DESC, total_experiencia DESC`,
+      [id_grupo]
+    );
+
     // Progreso por tipo de juego
     const progressByGameType: any = await query(
       `SELECT 
@@ -137,6 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Progreso mensual
     const monthlyProgress: any = await query(
       `SELECT 
+        DATE_FORMAT(r.fecha, '%Y-%m') AS month_key,
         DATE_FORMAT(r.fecha, '%M %Y') AS month_name,
         COUNT(*) AS labs_completed,
         AVG(r.puntaje) AS average_score
@@ -146,8 +166,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         AND ag.activo = 1
         AND r.completado = 1
         AND r.fecha >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-      GROUP BY DATE_FORMAT(r.fecha, '%Y-%m')
-      ORDER BY DATE_FORMAT(r.fecha, '%Y-%m') DESC`,
+      GROUP BY month_key, month_name
+      ORDER BY month_key DESC`,
       [id_grupo]
     );
 
@@ -157,7 +177,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         act.id_actividad,
         act.titulo AS nombre_laboratorio,
         j.nombre AS tipo_juego,
-        actg.publicado,
+        act.publicado,
         actg.fecha_asignacion
       FROM actividad_grupo actg
       INNER JOIN actividades act ON actg.id_actividad_ag_fk = act.id_actividad
@@ -167,17 +187,78 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       [id_grupo]
     );
 
+    // Tiempo promedio por tipo de juego
+    const avgTimeByGameType: any = await query(
+      `SELECT 
+        j.nombre AS tipo_juego,
+        j.icono,
+        AVG(r.tiempo_segundos) AS avg_time_seconds,
+        MIN(r.tiempo_segundos) AS min_time_seconds,
+        MAX(r.tiempo_segundos) AS max_time_seconds
+      FROM resultados r
+      INNER JOIN actividades act ON r.id_actividad_resultado_fk = act.id_actividad
+      INNER JOIN juegos j ON act.id_juego_actividad_fk = j.id_juego
+      INNER JOIN alumno_grupo ag ON r.id_alumno_resultado_fk = ag.id_alumno_ag_fk
+      WHERE ag.id_grupo_ag_fk = ? AND ag.activo = 1 AND r.completado = 1
+      GROUP BY j.id_juego, j.nombre, j.icono
+      ORDER BY avg_time_seconds DESC`,
+      [id_grupo]
+    );
+
+    // Tasa de aprobación y estadísticas por estudiante
+    const studentStats: any = await query(
+      `SELECT 
+        a.id_alumno,
+        CONCAT(u.nombre, ' ', u.primer_apellido) AS nombre_completo,
+        COUNT(r.id_resultado) AS total_intentos,
+        SUM(CASE WHEN r.completado = 1 THEN 1 ELSE 0 END) AS labs_completados,
+        SUM(CASE WHEN r.aprobado = 1 THEN 1 ELSE 0 END) AS labs_aprobados,
+        AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END) AS promedio,
+        AVG(CASE WHEN r.completado = 1 THEN r.tiempo_segundos ELSE NULL END) AS tiempo_promedio,
+        SUM(r.experiencia_ganada) AS exp_total
+      FROM alumnos a
+      INNER JOIN usuarios u ON a.id_usuario_alumno_fk = u.id_usuario
+      INNER JOIN alumno_grupo ag ON a.id_alumno = ag.id_alumno_ag_fk
+      LEFT JOIN resultados r ON a.id_alumno = r.id_alumno_resultado_fk
+      WHERE ag.id_grupo_ag_fk = ? AND ag.activo = 1
+      GROUP BY a.id_alumno, u.nombre, u.primer_apellido
+      ORDER BY promedio DESC`,
+      [id_grupo]
+    );
+
+    // Progreso semanal reciente (últimas 4 semanas)
+    const weeklyProgress: any = await query(
+      `SELECT 
+        YEARWEEK(r.fecha, 1) AS week_key,
+        DATE_FORMAT(DATE_SUB(r.fecha, INTERVAL WEEKDAY(r.fecha) DAY), '%d %b') AS week_start,
+        COUNT(DISTINCT CASE WHEN r.completado = 1 THEN r.id_resultado END) AS labs_completados,
+        AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END) AS promedio_semanal,
+        AVG(CASE WHEN r.completado = 1 THEN r.tiempo_segundos ELSE NULL END) AS tiempo_promedio
+      FROM resultados r
+      INNER JOIN alumno_grupo ag ON r.id_alumno_resultado_fk = ag.id_alumno_ag_fk
+      WHERE ag.id_grupo_ag_fk = ? 
+        AND ag.activo = 1
+        AND r.fecha >= DATE_SUB(CURDATE(), INTERVAL 4 WEEK)
+      GROUP BY week_key, week_start
+      ORDER BY week_key ASC`,
+      [id_grupo]
+    );
+
     return res.status(200).json({
       success: true,
       data: {
         groupInfo: grupoInfo[0],
         groupStats: groupStats[0],
         topStudents,
+        allStudents,
         studentsNeedingHelp,
         progressByGameType,
         scoreDistribution,
         monthlyProgress,
-        assignedLabs
+        assignedLabs,
+        avgTimeByGameType,
+        studentStats,
+        weeklyProgress
       }
     });
   } catch (error: any) {

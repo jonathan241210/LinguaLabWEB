@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import { withAuthProtection } from '@/lib/withAuth';
 import DashboardLayout from '@/app/components/DashboardLayout';
 import FormModal from '@/app/components/FormModal';
+import { 
+  ProgressByGameTypeChart, 
+  ScoreDistributionChart, 
+  MonthlyProgressChart,
+  TimePerformanceChart,
+  WeeklyProgressChart
+} from '@/app/components/StatsCharts';
 
 interface Alumno { 
   id_alumno: number; 
@@ -951,18 +958,8 @@ function GruposPage() {
                 <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
                   <span>🎮</span> Progress by Game Type
                 </h3>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(250px, 1fr))', gap:'12px' }}>
-                  {selectedGroupStats.progressByGameType.map((game:any, idx:number) => (
-                    <div key={idx} style={{ padding:'14px', backgroundColor:'rgba(255,255,255,0.08)', borderRadius:'8px', display:'flex', alignItems:'center', gap:'12px' }}>
-                      <div style={{ flex:1 }}>
-                        <div style={{ color:'white', fontSize:'14px', fontWeight:600, marginBottom:'4px' }}>{game.tipo_juego}</div>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                          <span style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px' }}>{game.total_attempts} attempts</span>
-                          <span style={{ color:'#60a5fa', fontSize:'14px', fontWeight:'bold' }}>{Number(game.average_score).toFixed(1)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ height:'350px', backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'8px', padding:'16px' }}>
+                  <ProgressByGameTypeChart data={selectedGroupStats.progressByGameType} />
                 </div>
               </div>
             )}
@@ -971,22 +968,10 @@ function GruposPage() {
             {selectedGroupStats.scoreDistribution && selectedGroupStats.scoreDistribution.length > 0 && (
               <div style={{ backgroundColor:'rgba(168,85,247,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(168,85,247,0.4)' }}>
                 <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
-                  Score Distribution
+                  <span>📊</span> Score Distribution
                 </h3>
-                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                  {selectedGroupStats.scoreDistribution.map((range:any, idx:number) => (
-                    <div key={idx} style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                      <div style={{ width:'100px', color:'rgba(255,255,255,0.9)', fontSize:'13px', fontWeight:600 }}>{range.score_range}</div>
-                      <div style={{ flex:1, height:'24px', backgroundColor:'rgba(255,255,255,0.1)', borderRadius:'6px', overflow:'hidden', position:'relative' }}>
-                        <div style={{ height:'100%', backgroundColor:'#c084fc', width:`${(range.student_count / selectedGroupStats.groupInfo.total_alumnos) * 100}%`, transition:'width 0.5s', display:'flex', alignItems:'center', paddingLeft:'8px' }}>
-                          <span style={{ color:'white', fontSize:'12px', fontWeight:'bold' }}>{range.student_count}</span>
-                        </div>
-                      </div>
-                      <div style={{ width:'60px', textAlign:'right', color:'rgba(255,255,255,0.7)', fontSize:'12px' }}>
-                        {((range.student_count / selectedGroupStats.groupInfo.total_alumnos) * 100).toFixed(0)}%
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ height:'350px', backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'8px', padding:'16px' }}>
+                  <ScoreDistributionChart data={selectedGroupStats.scoreDistribution} />
                 </div>
               </div>
             )}
@@ -995,21 +980,34 @@ function GruposPage() {
             {selectedGroupStats.monthlyProgress && selectedGroupStats.monthlyProgress.length > 0 && (
               <div style={{ backgroundColor:'rgba(249,115,22,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(249,115,22,0.4)' }}>
                 <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
-                  <span>📅</span> Monthly Progress Trend
+                  <span>📅</span> Monthly Progress Trend (Last 6 Months)
                 </h3>
-                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                  {selectedGroupStats.monthlyProgress.map((month:any, idx:number) => (
-                    <div key={idx} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px', backgroundColor:'rgba(255,255,255,0.08)', borderRadius:'8px' }}>
-                      <div>
-                        <div style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{month.month_name}</div>
-                        <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'12px' }}>{month.labs_completed} labs completed</div>
-                      </div>
-                      <div style={{ textAlign:'right' }}>
-                        <div style={{ color:'#fb923c', fontSize:'18px', fontWeight:'bold' }}>{Number(month.average_score).toFixed(1)}</div>
-                        <div style={{ color:'rgba(255,255,255,0.6)', fontSize:'11px' }}>avg score</div>
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ height:'350px', backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'8px', padding:'16px' }}>
+                  <MonthlyProgressChart data={selectedGroupStats.monthlyProgress.slice(-6)} />
+                </div>
+              </div>
+            )}
+
+            {/* Average Time by Game Type */}
+            {selectedGroupStats.avgTimeByGameType && selectedGroupStats.avgTimeByGameType.length > 0 && (
+              <div style={{ backgroundColor:'rgba(34,197,94,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(34,197,94,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <span>⏱️</span> Tiempo Promedio por Tipo de Juego
+                </h3>
+                <div style={{ height:'350px', backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'8px', padding:'16px' }}>
+                  <TimePerformanceChart data={selectedGroupStats.avgTimeByGameType} />
+                </div>
+              </div>
+            )}
+
+            {/* Weekly Progress */}
+            {selectedGroupStats.weeklyProgress && selectedGroupStats.weeklyProgress.length > 0 && (
+              <div style={{ backgroundColor:'rgba(147,51,234,0.15)', borderRadius:'12px', padding:'20px', marginBottom:'24px', border:'2px solid rgba(147,51,234,0.4)' }}>
+                <h3 style={{ color:'white', fontSize:'18px', fontWeight:600, marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <span>📈</span> Progreso Semanal (Últimas 4 Semanas)
+                </h3>
+                <div style={{ height:'350px', backgroundColor:'rgba(0,0,0,0.2)', borderRadius:'8px', padding:'16px' }}>
+                  <WeeklyProgressChart data={selectedGroupStats.weeklyProgress} />
                 </div>
               </div>
             )}

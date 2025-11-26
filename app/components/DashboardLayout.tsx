@@ -123,8 +123,7 @@ export default function DashboardLayout({
       { id: 'vocab', label: 'Vocabulary', icon: Icons.book },
     ],
     docente: [
-      { id: 'home', label: 'Home', icon: Icons.home },
-      { id: 'groups', label: 'Groups', icon: Icons.group },
+      { id: 'groups', label: 'My Groups', icon: Icons.group },
     ],
     alumno: [
       { id: 'home', label: 'Home', icon: Icons.home },
@@ -209,8 +208,6 @@ export default function DashboardLayout({
       }
     } else if (roleType === 'docente') {
       switch (id) {
-        case 'home':
-          return '/dashboard/docente';
         case 'groups':
           return '/dashboard/docente';
         default:
@@ -485,47 +482,6 @@ export default function DashboardLayout({
             </div>
           ))}
         </nav>
-
-        {/* Sección TOOLS para docentes */}
-        {roleType === 'docente' && (
-          <div style={{ marginBottom: '16px' }}>
-            <p style={{ fontSize: '12px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '16px', letterSpacing: '1px' }}>
-              Tools
-            </p>
-            <button
-              onClick={() => console.log('Create activity')}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: 'rgba(46, 168, 83, 0.2)',
-                color: 'var(--color-primary-green)',
-                border: '2px solid var(--color-primary-green)',
-                borderRadius: 'var(--radius-lg)',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all var(--transition-normal)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--color-primary-green)';
-                e.currentTarget.style.color = 'white';
-                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(46, 168, 83, 0.2)';
-                e.currentTarget.style.color = 'var(--color-primary-green)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <span style={{ fontSize: '16px' }}>+</span>
-              Create activity
-            </button>
-          </div>
-        )}
 
         {/* Botón Logout (ícono X) */}
         <button

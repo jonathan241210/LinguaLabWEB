@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         coh.etiqueta AS cohorte,
         pe.nombre AS programa,
         COUNT(DISTINCT ag.id_alumno_ag_fk) AS total_alumnos,
-        COUNT(DISTINCT CASE WHEN actg.publicado = 1 THEN actg.id_actividad_ag_fk END) AS actividades_publicadas,
+        COUNT(DISTINCT actg.id_actividad_ag_fk) AS actividades_publicadas,
         AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END) AS promedio_grupo
       FROM grupos g
       LEFT JOIN cuatrimestres c ON g.id_cuatrimestre_grupo_fk = c.id_cuatrimestre
