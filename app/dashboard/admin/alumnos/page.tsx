@@ -1021,7 +1021,6 @@ function AlumnosPage() {
                     <div><strong>Program:</strong> {selectedStudentStats.student.programa || 'N/A'}</div>
                     <div><strong>Level:</strong> {selectedStudentStats.student.nivel_actual || 'N/A'}</div>
                     <div><strong>Group:</strong> {selectedStudentStats.student.cuatrimestre}{selectedStudentStats.student.grupo_nombre || 'Not assigned'}</div>
-                    <div><strong>Days in Program:</strong> {selectedStudentStats.student.dias_en_programa || 0} days</div>
                   </div>
                 </div>
 

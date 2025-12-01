@@ -51,6 +51,7 @@ export async function loginDocente(matricula: string, password: string): Promise
         nombre: docente.nombre,
         rol: docente.rol,
         matricula: docente.matricula,
+        correo: docente.correo,
       },
     };
   } catch (error) {

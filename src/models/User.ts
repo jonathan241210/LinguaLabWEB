@@ -20,6 +20,7 @@ export interface UsuarioLogin {
 
 export interface UsuarioDocente extends UsuarioLogin {
   matricula: string;
+  correo?: string;
 }
 
 export interface UsuarioAdmin extends UsuarioLogin {
@@ -36,6 +37,7 @@ export async function findDocenteByMatricula(matricula: string): Promise<Usuario
       SELECT 
         u.id_usuario, 
         u.nombre, 
+        u.correo,
         u.rol, 
         d.matricula
       FROM usuarios u
@@ -54,6 +56,7 @@ export async function findDocenteByMatricula(matricula: string): Promise<Usuario
       nombre: row.nombre,
       rol: row.rol,
       matricula: row.matricula,
+      correo: row.correo,
     };
   } catch (error) {
     console.error('Error finding docente:', error);

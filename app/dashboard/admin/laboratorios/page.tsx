@@ -1138,34 +1138,36 @@ export default function LaboratoriosPage() {
                     <option value="teachers">👨‍🏫 Teachers</option>
                     <option value="students">👨‍🎓 Students (Lab)</option>
                   </select>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleOpenAssignGroups(lab.id_laboratorio, lab.titulo)
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.05)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(26,31,58,0.3)'
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '10px',
-                      background: 'var(--color-dark-blue)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'var(--transition-fast)'
-                    }}
-                  >
-                    Assign Groups
-                  </button>
+                  {lab.published_scope === 'students' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenAssignGroups(lab.id_laboratorio, lab.titulo)
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(26,31,58,0.3)'
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.boxShadow = 'none'
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: 'var(--color-dark-blue)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'var(--transition-fast)'
+                      }}
+                    >
+                      Assign Groups
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()

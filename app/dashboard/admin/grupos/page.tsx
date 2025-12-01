@@ -1359,11 +1359,11 @@ function GruposPage() {
                 </div>
                 <div>
                   <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginBottom:'4px' }}>Teacher</p>
-                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.docente || 'Not assigned'}</p>
+                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.docente_nombre || 'Not assigned'}</p>
                 </div>
                 <div>
                   <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'12px', marginBottom:'4px' }}>Active Students</p>
-                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.total_alumnos}</p>
+                  <p style={{ color:'white', fontSize:'14px', fontWeight:600 }}>{selectedGroupStats.groupInfo.total_students || 0}</p>
                 </div>
               </div>
             </div>

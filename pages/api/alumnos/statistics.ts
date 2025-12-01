@@ -29,14 +29,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         coh.etiqueta AS cohorte,
         ag.fecha_ingreso,
         DATEDIFF(CURDATE(), ag.fecha_ingreso) AS dias_en_programa,
-        CONCAT(ud.nombre, ' ', ud.primer_apellido) AS docente_nombre
+        CONCAT(ud.nombre, ' ', ud.primer_apellido, ' ', IFNULL(ud.segundo_apellido, '')) AS docente_nombre
       FROM alumnos a
       INNER JOIN usuarios u ON a.id_usuario_alumno_fk = u.id_usuario
-      LEFT JOIN programas_educativos pe ON a.id_programa_alumno_fk = pe.id_programa
       LEFT JOIN alumno_grupo ag ON a.id_alumno = ag.id_alumno_ag_fk AND ag.activo = 1
       LEFT JOIN grupos g ON ag.id_grupo_ag_fk = g.id_grupo
       LEFT JOIN cuatrimestres c ON g.id_cuatrimestre_grupo_fk = c.id_cuatrimestre
       LEFT JOIN cohortes coh ON g.id_cohorte_grupo_fk = coh.id_cohorte
+      LEFT JOIN programas_educativos pe ON coh.id_programa_cohorte_fk = pe.id_programa
       LEFT JOIN docente_grupo dg ON g.id_grupo = dg.id_grupo_dg_fk AND dg.activo = 1
       LEFT JOIN docentes d ON dg.id_docente_dg_fk = d.id_docente
       LEFT JOIN usuarios ud ON d.id_usuario_docente_fk = ud.id_usuario
@@ -89,7 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const recentLabs: any = await query(
       `SELECT 
         act.titulo AS titulo,
-        j.nombre_juego AS game_type,
+        j.nombre AS game_type,
         j.icono,
         r.puntaje AS puntuacion,
         r.experiencia_ganada,

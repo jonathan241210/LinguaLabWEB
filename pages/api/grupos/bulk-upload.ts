@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/hash';
 
 interface ExcelRow {
   grupo_numero: string;
@@ -195,7 +195,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (docenteExiste && docenteExiste.length > 0) {
             id_docente = docenteExiste[0].id_docente;
           } else if (grupo.nombre_docente && grupo.primer_apellido_docente && grupo.correo_docente) {
-            const hashedPassword = await bcrypt.hash(matriculaDocente, 10);
+            const hashedPassword = hashPassword(matriculaDocente);
             
             const nuevoUsuario: any = await query(
               `INSERT INTO usuarios (nombre, primer_apellido, segundo_apellido, correo, contrasena, rol, activo) 
@@ -245,7 +245,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (alumnoExiste && alumnoExiste.length > 0) {
             id_alumno = alumnoExiste[0].id_alumno;
           } else if (alumnoRow.nombre_alumno && alumnoRow.primer_apellido_alumno && alumnoRow.correo_alumno) {
-            const hashedPassword = await bcrypt.hash(matricula, 10);
+            const hashedPassword = hashPassword(matricula);
 
             const nuevoUsuario: any = await query(
               `INSERT INTO usuarios (nombre, primer_apellido, segundo_apellido, correo, contrasena, rol, activo) 

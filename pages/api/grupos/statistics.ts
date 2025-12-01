@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         c.nombre AS cuatrimestre,
         coh.etiqueta AS cohorte,
         pe.nombre AS programa,
-        CONCAT(ud.nombre, ' ', ud.primer_apellido) AS docente_nombre,
+        CONCAT(ud.nombre, ' ', ud.primer_apellido, ' ', IFNULL(ud.segundo_apellido, '')) AS docente_nombre,
         COUNT(DISTINCT ag.id_alumno_ag_fk) AS total_students
       FROM grupos g
       LEFT JOIN cuatrimestres c ON g.id_cuatrimestre_grupo_fk = c.id_cuatrimestre
@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       LEFT JOIN usuarios ud ON d.id_usuario_docente_fk = ud.id_usuario
       LEFT JOIN alumno_grupo ag ON g.id_grupo = ag.id_grupo_ag_fk AND ag.activo = 1
       WHERE g.id_grupo = ?
-      GROUP BY g.id_grupo, g.nombre, c.nombre, coh.etiqueta, pe.nombre, ud.nombre, ud.primer_apellido`,
+      GROUP BY g.id_grupo, g.nombre, c.nombre, coh.etiqueta, pe.nombre, ud.nombre, ud.primer_apellido, ud.segundo_apellido`,
       [id_grupo]
     );
 
@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `SELECT 
         a.id_alumno,
         a.matricula,
-        CONCAT(u.nombre, ' ', u.primer_apellido) AS nombre_completo,
+        CONCAT(u.nombre, ' ', u.primer_apellido, ' ', IFNULL(u.segundo_apellido, '')) AS nombre_completo,
         COUNT(DISTINCT CASE WHEN r.completado = 1 THEN r.id_resultado END) AS labs_completed,
         AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END) AS average_score,
         SUM(IFNULL(r.experiencia_ganada, 0)) AS total_experience
@@ -78,12 +78,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       [id_grupo]
     );
 
-    // Estudiantes que necesitan apoyo
+    // Estudiantes que necesitan apoyo (solo si han completado al menos 1 lab y tienen promedio bajo)
     const studentsNeedingHelp: any = await query(
       `SELECT 
         a.id_alumno,
         a.matricula,
-        CONCAT(u.nombre, ' ', u.primer_apellido) AS nombre_completo,
+        CONCAT(u.nombre, ' ', u.primer_apellido, ' ', IFNULL(u.segundo_apellido, '')) AS nombre_completo,
         IFNULL(COUNT(DISTINCT CASE WHEN r.completado = 1 THEN r.id_resultado END), 0) AS labs_completed,
         IFNULL(AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END), 0) AS average_score
       FROM alumnos a
@@ -92,8 +92,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       LEFT JOIN resultados r ON a.id_alumno = r.id_alumno_resultado_fk
       WHERE ag.id_grupo_ag_fk = ? AND ag.activo = 1
       GROUP BY a.id_alumno
-      HAVING labs_completed = 0 OR average_score < 70
-      ORDER BY labs_completed ASC, average_score ASC
+      HAVING labs_completed >= 1 AND average_score < 70
+      ORDER BY average_score ASC, labs_completed ASC
       LIMIT 5`,
       [id_grupo]
     );
@@ -209,7 +209,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const studentStats: any = await query(
       `SELECT 
         a.id_alumno,
-        CONCAT(u.nombre, ' ', u.primer_apellido) AS nombre_completo,
+        CONCAT(u.nombre, ' ', u.primer_apellido, ' ', IFNULL(u.segundo_apellido, '')) AS nombre_completo,
         COUNT(r.id_resultado) AS total_intentos,
         SUM(CASE WHEN r.completado = 1 THEN 1 ELSE 0 END) AS labs_completados,
         SUM(CASE WHEN r.aprobado = 1 THEN 1 ELSE 0 END) AS labs_aprobados,
@@ -221,7 +221,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       INNER JOIN alumno_grupo ag ON a.id_alumno = ag.id_alumno_ag_fk
       LEFT JOIN resultados r ON a.id_alumno = r.id_alumno_resultado_fk
       WHERE ag.id_grupo_ag_fk = ? AND ag.activo = 1
-      GROUP BY a.id_alumno, u.nombre, u.primer_apellido
+      GROUP BY a.id_alumno, u.nombre, u.primer_apellido, u.segundo_apellido
       ORDER BY promedio DESC`,
       [id_grupo]
     );
