@@ -38,6 +38,9 @@ function DocentesPage() {
   } | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTeacherEdit, setSelectedTeacherEdit] = useState<Docente | null>(null);
+  const [showConfirmDeleteTeacher, setShowConfirmDeleteTeacher] = useState(false);
+  const [confirmDeleteTeacherExiting, setConfirmDeleteTeacherExiting] = useState(false);
+  const [teacherToDelete, setTeacherToDelete] = useState<{ id: number; name: string } | null>(null);
 
   const teacherFields: any = [
     { name: 'nombre', label: 'Name(s)', type: 'text', required: true, placeholder: 'E.g.: María' },
@@ -212,6 +215,59 @@ function DocentesPage() {
     } catch (e: any) {
       console.error('Error updating teacher', e);
       throw e;
+    }
+  };
+
+  const handleDeleteTeacherClick = (id_docente: number, nombre_completo: string) => {
+    setTeacherToDelete({ id: id_docente, name: nombre_completo });
+    setShowConfirmDeleteTeacher(true);
+    setConfirmDeleteTeacherExiting(false);
+  };
+
+  const confirmDeleteTeacher = async () => {
+    if (!teacherToDelete) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/docentes/delete', {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id_docente: teacherToDelete.id })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Error deleting teacher');
+      }
+
+      // Animación de salida del modal
+      setConfirmDeleteTeacherExiting(true);
+      setTimeout(() => {
+        setShowConfirmDeleteTeacher(false);
+        setConfirmDeleteTeacherExiting(false);
+        setTeacherToDelete(null);
+      }, 300);
+
+      setSuccessModal({
+        isOpen: true,
+        message: 'Teacher deleted successfully',
+        type: 'success',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+
+      await loadDocentes();
+    } catch (e: any) {
+      console.error('Error deleting teacher:', e);
+      setSuccessModal({
+        isOpen: true,
+        message: e.message || 'Error deleting teacher',
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
     }
   };
 
@@ -541,6 +597,31 @@ function DocentesPage() {
                         Edit Info
                       </button>
                       <button
+                        onClick={() => handleDeleteTeacherClick(docente.id_docente, docente.nombre_completo)}
+                        style={{
+                          flex: '1 1 calc(50% - 4px)',
+                          padding: '10px 16px',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(239,68,68,0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <i className="bi bi-trash"></i> Delete (TEST)
+                      </button>
+                      <button
                         onClick={() => showToggleConfirmation(docente)}
                         disabled={isToggling === docente.id_docente}
                         style={{
@@ -721,6 +802,169 @@ function DocentesPage() {
                 }}
               >
                 {confirmToggleModal.action === 'deactivate' ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showConfirmDeleteTeacher && teacherToDelete && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10000,
+            animation: confirmDeleteTeacherExiting ? 'fadeOut 0.3s ease-out forwards' : 'fadeIn 0.3s ease-out',
+          }}
+          onClick={() => {
+            setConfirmDeleteTeacherExiting(true);
+            setTimeout(() => {
+              setShowConfirmDeleteTeacher(false);
+              setConfirmDeleteTeacherExiting(false);
+              setTeacherToDelete(null);
+            }, 300);
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              animation: confirmDeleteTeacherExiting ? 'slideDown 0.3s ease-out forwards' : 'slideUp 0.3s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Warning Icon */}
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+            }}>
+              <i className="bi bi-exclamation-triangle-fill" style={{
+                fontSize: '32px',
+                color: '#ef4444'
+              }}></i>
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              color: 'white',
+              fontSize: '24px',
+              fontWeight: 700,
+              marginBottom: '12px',
+              textAlign: 'center',
+            }}>
+              Delete Teacher
+            </h3>
+
+            {/* Message */}
+            <p style={{
+              color: '#94a3b8',
+              fontSize: '15px',
+              lineHeight: '1.6',
+              marginBottom: '8px',
+              textAlign: 'center',
+            }}>
+              Are you sure you want to delete the teacher:
+            </p>
+            <p style={{
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: 600,
+              marginBottom: '8px',
+              textAlign: 'center',
+            }}>
+              {teacherToDelete.name}
+            </p>
+            <p style={{
+              color: '#ef4444',
+              fontSize: '14px',
+              lineHeight: '1.5',
+              marginBottom: '24px',
+              textAlign: 'center',
+              fontWeight: 500,
+            }}>
+              This action cannot be undone. All teacher data, including their user account and group assignments will be permanently deleted.
+            </p>
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '24px',
+            }}>
+              <button
+                onClick={() => {
+                  setConfirmDeleteTeacherExiting(true);
+                  setTimeout(() => {
+                    setShowConfirmDeleteTeacher(false);
+                    setConfirmDeleteTeacherExiting(false);
+                    setTeacherToDelete(null);
+                  }, 300);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  backgroundColor: '#334155',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#475569';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#334155';
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteTeacher}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dc2626';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ef4444';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                Yes, Delete Teacher
               </button>
             </div>
           </div>

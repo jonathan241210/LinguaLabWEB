@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { withAuthProtection } from '@/lib/withAuth';
 import DashboardLayout from '@/app/components/DashboardLayout';
 import FormModal from '@/app/components/FormModal';
+import * as XLSX from 'xlsx';
 import { 
   ProgressByGameTypeChart, 
   ScoreDistributionChart, 
@@ -76,6 +77,21 @@ function GruposPage() {
   const [groupStatsExiting, setGroupStatsExiting] = useState(false);
   const [selectedGroupStats, setSelectedGroupStats] = useState<any>(null);
   const [loadingGroupStats, setLoadingGroupStats] = useState(false);
+
+  // Bulk upload states
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [bulkUploadExiting, setBulkUploadExiting] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadResults, setUploadResults] = useState<any>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewExiting, setPreviewExiting] = useState(false);
+  const [excelRowsToUpload, setExcelRowsToUpload] = useState<any[]>([]);
+
+  // Delete states (TESTING ONLY)
+  const [showConfirmDeleteGroup, setShowConfirmDeleteGroup] = useState(false);
+  const [confirmDeleteGroupExiting, setConfirmDeleteGroupExiting] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<{id_grupo: number, nombre: string} | null>(null);
 
   const [newGrupo, setNewGrupo] = useState({
     nombre:'',
@@ -427,6 +443,63 @@ function GruposPage() {
     setSelectedStudents(prev => prev.includes(id_alumno) ? prev.filter(id=> id!== id_alumno) : [...prev, id_alumno]);
   };
 
+  // TESTING ONLY - Delete group function
+  const handleDeleteGroupClick = (id_grupo: number, nombre: string) => {
+    setGroupToDelete({ id_grupo, nombre });
+    setShowConfirmDeleteGroup(true);
+  };
+
+  const confirmDeleteGroup = async () => {
+    if (!groupToDelete) return;
+    setConfirmDeleteGroupExiting(true);
+    setTimeout(() => {
+      setShowConfirmDeleteGroup(false);
+      setConfirmDeleteGroupExiting(false);
+    }, 220);
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/grupos/delete', {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id_grupo: groupToDelete.id_grupo })
+      });
+      const data = await res.json();
+      
+      if (!data.success) {
+        setSuccessModal({
+          isOpen: true,
+          message: data.message || 'Error al eliminar grupo',
+          type: 'error',
+          onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+        });
+        return;
+      }
+      
+      setSuccessModal({
+        isOpen: true,
+        message: 'Grupo eliminado exitosamente',
+        type: 'success',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+      setGroupToDelete(null);
+      loadGrupos();
+      loadAlumnosDisponibles();
+      
+    } catch (e) {
+      console.error('Error deleting group', e);
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error al eliminar grupo',
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+    }
+  };
+
   const filteredAlumnos = alumnosDisponibles.filter(a => {
     const term = searchTerm.toLowerCase();
     const matchSearch = a.matricula.toLowerCase().includes(term) || a.nombre_completo.toLowerCase().includes(term);
@@ -441,6 +514,366 @@ function GruposPage() {
       case 'inactivo': return '#ef4444'; // Red
       default: return '#2ea853';
     }
+  };
+
+  // Bulk upload functions
+  const openBulkUploadModal = () => {
+    setUploadResults(null);
+    setShowBulkUploadModal(true);
+  };
+
+  const closeBulkUploadModal = () => {
+    setBulkUploadExiting(true);
+    setTimeout(() => {
+      setShowBulkUploadModal(false);
+      setBulkUploadExiting(false);
+      setUploadResults(null);
+    }, 250);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingFile(true);
+      setUploadResults(null);
+      setPreviewData(null);
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      // Mapear los datos del Excel al formato esperado (una fila = un alumno)
+      const rows = jsonData.map((row: any) => ({
+        grupo_numero: row['Número de Grupo']?.toString() || row['grupo_numero']?.toString() || '',
+        cuatrimestre: row['Cuatrimestre'] || row['cuatrimestre'] || '',
+        programa_codigo: row['Código Programa'] || row['programa_codigo'] || '',
+        nivel_codigo: row['Código Nivel'] || row['nivel_codigo'] || '',
+        anio_ingreso: row['Año Ingreso'] || row['anio_ingreso'] || new Date().getFullYear(),
+        cuatrimestre_inicial: row['Cuatrimestre Inicial'] || row['cuatrimestre_inicial'] || 1,
+        estado_practicas: row['Estado Prácticas'] || row['estado_practicas'] || 'NO',
+        
+        // Datos docente
+        matricula_docente: row['Matrícula Docente'] || row['matricula_docente'] || '',
+        nombre_docente: row['Nombre Docente'] || row['nombre_docente'] || '',
+        primer_apellido_docente: row['Primer Apellido Docente'] || row['primer_apellido_docente'] || '',
+        segundo_apellido_docente: row['Segundo Apellido Docente'] || row['segundo_apellido_docente'] || '',
+        correo_docente: row['Correo Docente'] || row['correo_docente'] || '',
+        
+        // Datos de UN alumno por fila
+        matricula_alumno: row['Matrícula Alumno'] || row['matricula_alumno'] || '',
+        nombre_alumno: row['Nombre Alumno'] || row['nombre_alumno'] || '',
+        primer_apellido_alumno: row['Primer Apellido Alumno'] || row['primer_apellido_alumno'] || '',
+        segundo_apellido_alumno: row['Segundo Apellido Alumno'] || row['segundo_apellido_alumno'] || '',
+        correo_alumno: row['Correo Alumno'] || row['correo_alumno'] || ''
+      }));
+
+      // Guardar rows para después
+      setExcelRowsToUpload(rows);
+
+      // Primero obtener previsualización
+      const token = localStorage.getItem('token');
+      const previewResponse = await fetch('/api/grupos/preview-bulk-upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ rows })
+      });
+
+      const previewResult = await previewResponse.json();
+      
+      if (previewResult.success) {
+        setPreviewData(previewResult.preview);
+        setShowPreviewModal(true);
+        setPreviewExiting(false);
+      } else {
+        throw new Error(previewResult.message || 'Error al generar previsualización');
+      }
+
+    } catch (error: any) {
+      setSuccessModal({
+        isOpen: true,
+        message: `Error al procesar el archivo: ${error.message}`,
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+    } finally {
+      setUploadingFile(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
+
+  const confirmBulkUpload = async () => {
+    if (!excelRowsToUpload || excelRowsToUpload.length === 0) return;
+
+    try {
+      setUploadingFile(true);
+      
+      // Cerrar modal de preview
+      setPreviewExiting(true);
+      setTimeout(() => {
+        setShowPreviewModal(false);
+        setPreviewExiting(false);
+      }, 300);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/grupos/bulk-upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ rows: excelRowsToUpload })
+      });
+
+      const result = await response.json();
+      setUploadResults(result);
+
+      if (result.success && result.data?.gruposCreados > 0) {
+        loadGrupos();
+        loadAlumnosDisponibles();
+      }
+
+    } catch (error: any) {
+      setSuccessModal({
+        isOpen: true,
+        message: `Error al crear grupos: ${error.message}`,
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+    } finally {
+      setUploadingFile(false);
+      setExcelRowsToUpload([]);
+    }
+  };
+
+  const downloadExcelTemplate = () => {
+    // Datos de ejemplo - Una fila por alumno
+    const template = [
+      // Grupo 1 - Alumno 1
+      {
+        'Número de Grupo': '1',
+        'Cuatrimestre': '1',
+        'Código Programa': 'TIC',
+        'Código Nivel': 'TSU',
+        'Año Ingreso': 2025,
+        'Cuatrimestre Inicial': 1,
+        'Estado Prácticas': 'NO',
+        'Matrícula Docente': 'D001',
+        'Nombre Docente': 'Juan',
+        'Primer Apellido Docente': 'Pérez',
+        'Segundo Apellido Docente': 'García',
+        'Correo Docente': 'juan.perez@example.com',
+        'Matrícula Alumno': 'A001',
+        'Nombre Alumno': 'María',
+        'Primer Apellido Alumno': 'López',
+        'Segundo Apellido Alumno': 'Martínez',
+        'Correo Alumno': 'maria.lopez@example.com'
+      },
+      // Grupo 1 - Alumno 2 (mismos datos de grupo y docente)
+      {
+        'Número de Grupo': '1',
+        'Cuatrimestre': '1',
+        'Código Programa': 'TIC',
+        'Código Nivel': 'TSU',
+        'Año Ingreso': 2025,
+        'Cuatrimestre Inicial': 1,
+        'Estado Prácticas': 'NO',
+        'Matrícula Docente': 'D001',
+        'Nombre Docente': 'Juan',
+        'Primer Apellido Docente': 'Pérez',
+        'Segundo Apellido Docente': 'García',
+        'Correo Docente': 'juan.perez@example.com',
+        'Matrícula Alumno': 'A002',
+        'Nombre Alumno': 'Pedro',
+        'Primer Apellido Alumno': 'Ramírez',
+        'Segundo Apellido Alumno': 'Torres',
+        'Correo Alumno': 'pedro.ramirez@example.com'
+      },
+      // Grupo 1 - Alumno 3
+      {
+        'Número de Grupo': '1',
+        'Cuatrimestre': '1',
+        'Código Programa': 'TIC',
+        'Código Nivel': 'TSU',
+        'Año Ingreso': 2025,
+        'Cuatrimestre Inicial': 1,
+        'Estado Prácticas': 'NO',
+        'Matrícula Docente': 'D001',
+        'Nombre Docente': 'Juan',
+        'Primer Apellido Docente': 'Pérez',
+        'Segundo Apellido Docente': 'García',
+        'Correo Docente': 'juan.perez@example.com',
+        'Matrícula Alumno': 'A003',
+        'Nombre Alumno': 'Ana',
+        'Primer Apellido Alumno': 'González',
+        'Segundo Apellido Alumno': 'Sánchez',
+        'Correo Alumno': 'ana.gonzalez@example.com'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    
+    // Crear hoja de catálogos
+    const catalogos = [
+      {
+        'CUATRIMESTRES': '1',
+        'CÓDIGOS PROGRAMA': 'TIC',
+        'NOMBRE PROGRAMA': 'Tecnologías de la Información e Innovación Digital',
+        'CÓDIGOS NIVEL': 'TSU',
+        'ESTADO PRÁCTICAS': 'SI'
+      },
+      {
+        'CUATRIMESTRES': '2',
+        'CÓDIGOS PROGRAMA': 'NyM',
+        'NOMBRE PROGRAMA': 'Negocios y Mercadotecnia',
+        'CÓDIGOS NIVEL': 'ING/LIC',
+        'ESTADO PRÁCTICAS': 'NO'
+      },
+      {
+        'CUATRIMESTRES': '3',
+        'CÓDIGOS PROGRAMA': 'CON',
+        'NOMBRE PROGRAMA': 'Contaduría',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '4',
+        'CÓDIGOS PROGRAMA': 'TF',
+        'NOMBRE PROGRAMA': 'Terapia Física',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '5',
+        'CÓDIGOS PROGRAMA': 'TFR',
+        'NOMBRE PROGRAMA': 'Terapia Física Área Rehabilitación',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '6',
+        'CÓDIGOS PROGRAMA': 'CyCF',
+        'NOMBRE PROGRAMA': 'Criminalística y Ciencias Forenses',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '7',
+        'CÓDIGOS PROGRAMA': 'CRI',
+        'NOMBRE PROGRAMA': 'Criminalística',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '8',
+        'CÓDIGOS PROGRAMA': 'DDyPA',
+        'NOMBRE PROGRAMA': 'Diseño Digital y Producción Audiovisual',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '9',
+        'CÓDIGOS PROGRAMA': 'EyDS',
+        'NOMBRE PROGRAMA': 'Energía y Desarrollo Sostenible',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '10',
+        'CÓDIGOS PROGRAMA': 'ENF',
+        'NOMBRE PROGRAMA': 'Enfermería',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '11',
+        'CÓDIGOS PROGRAMA': 'IND',
+        'NOMBRE PROGRAMA': 'Industrial',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '12',
+        'CÓDIGOS PROGRAMA': 'MEC',
+        'NOMBRE PROGRAMA': 'Mecatrónica',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '',
+        'CÓDIGOS PROGRAMA': 'MCyP',
+        'NOMBRE PROGRAMA': 'Médico Cirujano y Partero',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '',
+        'CÓDIGOS PROGRAMA': 'NAN',
+        'NOMBRE PROGRAMA': 'Nanotecnología',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '',
+        'CÓDIGOS PROGRAMA': 'SRyP',
+        'NOMBRE PROGRAMA': 'Salud Reproductiva y Partería',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      },
+      {
+        'CUATRIMESTRES': '',
+        'CÓDIGOS PROGRAMA': 'AyS',
+        'NOMBRE PROGRAMA': 'Ambiental y Sustentabilidad',
+        'CÓDIGOS NIVEL': '',
+        'ESTADO PRÁCTICAS': ''
+      }
+    ];
+
+    const wsCatalogos = XLSX.utils.json_to_sheet(catalogos);
+    
+    // Ajustar anchos de columna para la hoja principal
+    ws['!cols'] = [
+      { wch: 18 }, // Número de Grupo
+      { wch: 14 }, // Cuatrimestre
+      { wch: 16 }, // Código Programa
+      { wch: 14 }, // Código Nivel
+      { wch: 12 }, // Año Ingreso
+      { wch: 18 }, // Cuatrimestre Inicial
+      { wch: 16 }, // Estado Prácticas
+      { wch: 18 }, // Matrícula Docente
+      { wch: 18 }, // Nombre Docente
+      { wch: 25 }, // Primer Apellido Docente
+      { wch: 25 }, // Segundo Apellido Docente
+      { wch: 30 }, // Correo Docente
+      { wch: 18 }, // Matrícula Alumno
+      { wch: 18 }, // Nombre Alumno
+      { wch: 25 }, // Primer Apellido Alumno
+      { wch: 25 }, // Segundo Apellido Alumno
+      { wch: 30 }  // Correo Alumno
+    ];
+
+    // Ajustar anchos para hoja de catálogos
+    wsCatalogos['!cols'] = [
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 50 },
+      { wch: 16 },
+      { wch: 18 }
+    ];
+
+    // Agregar ambas hojas
+    XLSX.utils.book_append_sheet(wb, ws, 'Grupos');
+    XLSX.utils.book_append_sheet(wb, wsCatalogos, 'Catálogos');
+
+    XLSX.writeFile(wb, 'plantilla_grupos.xlsx');
   };
 
   const getEstadoBgColor = (estado?: string, isSelected?: boolean) => {
@@ -493,8 +926,37 @@ function GruposPage() {
       `}</style>
       <DashboardLayout title="Groups Management" activeMenu={activeMenu} onMenuItemClick={setActiveMenu} roleType="administrador" successModal={successModal}>
         <div style={{ padding:'24px' }}>
-          <div style={{ marginBottom:'24px' }}>
+          <div style={{ marginBottom:'24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <h1 style={{ fontSize:'28px', fontWeight:'bold', color:'var(--color-dark-blue)', margin:0 }}>Groups Management</h1>
+            <button
+              onClick={openBulkUploadModal}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#8b5cf6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.25s',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+              }}
+            >
+              <i className="bi bi-file-earmark-excel" style={{ fontSize: '18px' }}></i>
+              Carga Masiva de Grupos
+            </button>
           </div>
           <div style={{ display:'flex', gap:'24px', marginBottom:'24px', flexWrap:'wrap' }}>
             {/* Create Group */}
@@ -646,7 +1108,42 @@ function GruposPage() {
                     <p style={{ fontSize:'12px', color:'#888', margin:'4px 0', fontStyle:'italic' }}>Cohort: {grupo.cohorte}</p>
                     <p style={{ fontSize:'13px', color:'#666', margin:'4px 0' }}><strong>Students:</strong> {grupo.total_alumnos}</p>
                     <p style={{ fontSize:'13px', color:'#666', margin:'4px 0' }}><strong>Teacher:</strong> {grupo.docente || 'Not assigned'}</p>
-                    <button onClick={()=> handleViewGrupo(grupo.id_grupo)} style={{ marginTop:'12px', padding:'8px 16px', backgroundColor:'var(--color-primary-green)', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', width:'100%' }}>View Details</button>
+                    
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button 
+                        onClick={()=> handleViewGrupo(grupo.id_grupo)} 
+                        style={{ 
+                          flex: 1,
+                          padding:'8px 16px', 
+                          backgroundColor:'var(--color-primary-green)', 
+                          color:'white', 
+                          border:'none', 
+                          borderRadius:'6px', 
+                          fontSize:'13px', 
+                          fontWeight:600, 
+                          cursor:'pointer' 
+                        }}>
+                        View Details
+                      </button>
+                      <button 
+                        onClick={()=> handleDeleteGroupClick(grupo.id_grupo, grupo.nombre)} 
+                        style={{ 
+                          padding:'8px 12px', 
+                          backgroundColor:'#ef4444', 
+                          color:'white', 
+                          border:'none', 
+                          borderRadius:'6px', 
+                          fontSize:'13px', 
+                          fontWeight:600, 
+                          cursor:'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Eliminar grupo (PRUEBA)">
+                        <i className="bi bi-trash"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1154,6 +1651,676 @@ function GruposPage() {
               <button onClick={()=> { setConfirmRemoveStudentExiting(true); setTimeout(()=>{ setShowConfirmRemoveStudent(false); setConfirmRemoveStudentExiting(false); setStudentToRemove(null); }, 220); }} style={{ flex:1, padding:'12px', backgroundColor:'rgba(255,255,255,0.2)', color:'white', border:'2px solid white', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>Cancel</button>
               <button onClick={confirmRemoveStudentAction} style={{ flex:1, padding:'12px', backgroundColor:'#ff3b3b', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={(e)=> { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(255,59,59,0.4)'; }} onMouseLeave={(e)=> { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
                 Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUploadModal && (
+        <div
+          className={`llw-modal-overlay ${bulkUploadExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
+            padding: '20px'
+          }}
+          onClick={closeBulkUploadModal}
+        >
+          <div
+            className={`llw-modal-card ${bulkUploadExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`}
+            style={{
+              backgroundColor: 'var(--color-dark-blue)',
+              borderRadius: '20px',
+              padding: '32px',
+              width: '90%',
+              maxWidth: '800px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={closeBulkUploadModal}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: '#ff3b3b',
+                border: 'none',
+                color: 'white',
+                fontSize: '24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.25s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05) rotate(3deg)';
+                e.currentTarget.style.boxShadow = '0 6px 14px rgba(0,0,0,0.35)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div style={{ marginBottom: '24px', paddingRight: '40px' }}>
+              <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <i className="bi bi-file-earmark-excel" style={{ fontSize: '28px', color: '#8b5cf6' }}></i>
+                Carga Masiva de Grupos
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', margin: 0 }}>
+                Crea múltiples grupos y relaciones con un solo archivo Excel
+              </p>
+            </div>
+
+            {/* Instructions */}
+            <div style={{
+              background: 'rgba(139, 92, 246, 0.1)',
+              border: '2px solid rgba(139, 92, 246, 0.3)',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '24px'
+            }}>
+              <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="bi bi-info-circle"></i>
+                Instrucciones
+              </h3>
+              <ol style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', margin: 0, paddingLeft: '20px' }}>
+                <li style={{ marginBottom: '8px' }}>Descarga la plantilla de Excel haciendo clic en el botón de abajo</li>
+                <li style={{ marginBottom: '8px' }}>Llena el archivo con los datos de grupos, docentes y alumnos</li>
+                <li style={{ marginBottom: '8px' }}>El sistema creará automáticamente usuarios nuevos si no existen</li>
+                <li style={{ marginBottom: '8px' }}>Guarda el archivo y súbelo usando el botón "Seleccionar Archivo"</li>
+                <li>El sistema creará grupos, usuarios y relaciones automáticamente</li>
+              </ol>
+            </div>
+
+            {/* Excel Structure Info */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '24px'
+            }}>
+              <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+                📋 Estructura del Excel
+              </h3>
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
+                <p style={{ marginBottom: '12px', fontWeight: '600' }}>Columnas del Grupo:</p>
+                <ul style={{ margin: 0, paddingLeft: '20px', marginBottom: '16px' }}>
+                  <li><strong>Número de Grupo:</strong> Número (1, 2, 3, 4...)</li>
+                  <li><strong>Cuatrimestre:</strong> Número del cuatrimestre (1 al 12)</li>
+                  <li><strong>Código Programa:</strong> Código del programa (ver hoja "Catálogos")</li>
+                  <li><strong>Código Nivel:</strong> TSU o ING/LIC</li>
+                  <li><strong>Año Ingreso:</strong> Año (2025, 2024, etc.)</li>
+                  <li><strong>Cuatrimestre Inicial:</strong> Número (1, 2, 3...)</li>
+                  <li><strong>Estado Prácticas:</strong> SI o NO</li>
+                </ul>
+                
+                <p style={{ marginBottom: '12px', fontWeight: '600', color: '#60a5fa' }}>Columnas del Docente:</p>
+                <ul style={{ margin: 0, paddingLeft: '20px', marginBottom: '16px' }}>
+                  <li><strong>Matrícula Docente:</strong> Matrícula del docente</li>
+                  <li><strong>Nombre Docente:</strong> Nombre del docente (requerido si es nuevo)</li>
+                  <li><strong>Primer Apellido Docente:</strong> Primer apellido (requerido si es nuevo)</li>
+                  <li><strong>Segundo Apellido Docente:</strong> Segundo apellido (opcional)</li>
+                  <li><strong>Correo Docente:</strong> Correo electrónico (requerido si es nuevo)</li>
+                </ul>
+
+                <p style={{ marginBottom: '12px', fontWeight: '600', color: '#34d399' }}>Columnas de Alumnos:</p>
+                <ul style={{ margin: 0, paddingLeft: '20px', marginBottom: '12px' }}>
+                  <li><strong>Matrícula Alumno:</strong> Matrícula del alumno</li>
+                  <li><strong>Nombre Alumno:</strong> Nombre del alumno</li>
+                  <li><strong>Primer Apellido Alumno:</strong> Primer apellido</li>
+                  <li><strong>Segundo Apellido Alumno:</strong> Segundo apellido (opcional)</li>
+                  <li><strong>Correo Alumno:</strong> Correo electrónico</li>
+                </ul>
+
+                <div style={{ 
+                  marginTop: '16px', 
+                  padding: '14px', 
+                  background: 'rgba(59, 130, 246, 0.15)', 
+                  borderRadius: '8px',
+                  borderLeft: '4px solid #3b82f6'
+                }}>
+                  <p style={{ margin: 0, marginBottom: '8px', fontWeight: '600', color: '#60a5fa' }}>📝 Formato del Excel:</p>
+                  <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(255,255,255,0.85)' }}>
+                    <strong>UNA FILA = UN ALUMNO</strong>
+                  </p>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                    • Si un grupo tiene 3 alumnos, tendrás 3 filas<br/>
+                    • Repite los datos del grupo y docente en cada fila<br/>
+                    • Solo cambia los datos del alumno en cada fila<br/>
+                    • Ejemplo: El Grupo 1 con Docente D001 y 3 alumnos = 3 filas iguales excepto por los datos de cada alumno
+                  </p>
+                </div>
+
+                <p style={{ marginTop: '16px', padding: '12px', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '6px', fontSize: '12px' }}>
+                  💡 <strong>Importante:</strong> Si un docente o alumno ya existe (misma matrícula), se usará el existente. Si no existe, se creará automáticamente con contraseña = matrícula
+                </p>
+              </div>
+            </div>
+
+            {/* Download Template Button */}
+            <button
+              onClick={downloadExcelTemplate}
+              style={{
+                width: '100%',
+                padding: '14px',
+                backgroundColor: '#22c55e',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                transition: 'all 0.25s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(34, 197, 94, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <i className="bi bi-download" style={{ fontSize: '18px' }}></i>
+              Descargar Plantilla de Excel
+            </button>
+
+            {/* File Upload */}
+            <div style={{
+              border: '2px dashed rgba(255,255,255,0.3)',
+              borderRadius: '12px',
+              padding: '32px',
+              textAlign: 'center',
+              marginBottom: '20px',
+              background: 'rgba(255,255,255,0.03)'
+            }}>
+              <i className="bi bi-cloud-upload" style={{ fontSize: '48px', color: '#8b5cf6', marginBottom: '16px' }}></i>
+              <p style={{ color: 'white', fontSize: '15px', marginBottom: '16px', fontWeight: '600' }}>
+                {uploadingFile ? 'Procesando archivo...' : 'Selecciona tu archivo Excel'}
+              </p>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                disabled={uploadingFile}
+                style={{ display: 'none' }}
+                id="bulk-upload-input"
+              />
+              <label
+                htmlFor="bulk-upload-input"
+                style={{
+                  display: 'inline-block',
+                  padding: '12px 24px',
+                  backgroundColor: uploadingFile ? '#6b7280' : '#8b5cf6',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: uploadingFile ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.25s'
+                }}
+                onMouseEnter={(e) => {
+                  if (!uploadingFile) {
+                    e.currentTarget.style.backgroundColor = '#7c3aed';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!uploadingFile) {
+                    e.currentTarget.style.backgroundColor = '#8b5cf6';
+                  }
+                }}
+              >
+                {uploadingFile ? 'Procesando...' : 'Seleccionar Archivo'}
+              </label>
+            </div>
+
+            {/* Results */}
+            {uploadResults && uploadResults.success && (
+              <div style={{
+                background: uploadResults.data.gruposCreados > 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                border: `2px solid ${uploadResults.data.gruposCreados > 0 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                borderRadius: '12px',
+                padding: '20px'
+              }}>
+                <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className={`bi ${uploadResults.data.gruposCreados > 0 ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}`}></i>
+                  Resultados de la Carga Masiva
+                </h3>
+                
+                {/* Summary Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#22c55e' }}>{uploadResults.data.gruposCreados}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Grupos Creados</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#a78bfa' }}>{uploadResults.data.cohortesCreadas}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Cohortes Creadas</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(59, 130, 246, 0.2)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#60a5fa' }}>{uploadResults.data.docentesCreados}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Docentes Creados</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(59, 130, 246, 0.15)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#93c5fd' }}>{uploadResults.data.docentesAsignados}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Docentes Asignados</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(16, 185, 129, 0.2)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#34d399' }}>{uploadResults.data.alumnosCreados}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Alumnos Creados</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(16, 185, 129, 0.15)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#6ee7b7' }}>{uploadResults.data.alumnosAsignados}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Alumnos Asignados</div>
+                  </div>
+                </div>
+
+                {/* Errors */}
+                {uploadResults.data.errores && uploadResults.data.errores.length > 0 && (
+                  <div>
+                    <h4 style={{ color: '#ef4444', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>
+                      ❌ Errores encontrados ({uploadResults.data.errores.length}):
+                    </h4>
+                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {uploadResults.data.errores.map((error: string, idx: number) => (
+                        <div key={idx} style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', padding: '8px 12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', marginBottom: '6px' }}>
+                          • {error}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {uploadResults.data.gruposCreados > 0 && (
+                  <p style={{ marginTop: '16px', fontSize: '13px', color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>
+                    ✅ Los usuarios nuevos se crearon con contraseña = matrícula
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TESTING ONLY - Confirm Delete Group Modal */}
+      {showConfirmDeleteGroup && (
+        <div className={`llw-modal-overlay ${confirmDeleteGroupExiting ? 'llw-modal-overlay-exit' : 'llw-modal-overlay-enter'}`} 
+          style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} 
+          onClick={()=> {
+            setConfirmDeleteGroupExiting(true);
+            setTimeout(()=>{ setShowConfirmDeleteGroup(false); setConfirmDeleteGroupExiting(false); }, 220);
+          }}>
+          <div className={`llw-modal-card ${confirmDeleteGroupExiting ? 'llw-modal-card-exit' : 'llw-modal-card-enter'}`} 
+            style={{ backgroundColor:'var(--color-dark-blue)', borderRadius:'20px', padding:'32px', width:'90%', maxWidth:'400px', position:'relative' }} 
+            onClick={(e)=> e.stopPropagation()}>
+            
+            <button onClick={()=> {
+              setConfirmDeleteGroupExiting(true);
+              setTimeout(()=>{ setShowConfirmDeleteGroup(false); setConfirmDeleteGroupExiting(false); }, 220);
+            }} style={{ position:'absolute', top:'16px', right:'16px', background:'transparent', border:'none', color:'white', fontSize:'24px', cursor:'pointer', padding:'4px 8px' }}>×</button>
+
+            <div style={{ textAlign:'center', marginBottom:'24px' }}>
+              <div style={{ fontSize:'48px', marginBottom:'12px' }}>⚠️</div>
+              <h3 style={{ color:'white', fontSize:'20px', fontWeight:700, marginBottom:'8px' }}>Eliminar Grupo</h3>
+              <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', margin:0 }}>
+                ¿Estás seguro de eliminar el <strong>Grupo {groupToDelete?.nombre}</strong>?
+              </p>
+              <p style={{ color:'#ef4444', fontSize:'13px', marginTop:'12px', fontWeight:600 }}>
+                ⚠️ SOLO PARA PRUEBAS - Esto eliminará el grupo y todas sus relaciones
+              </p>
+            </div>
+
+            <div style={{ display:'flex', gap:'12px' }}>
+              <button onClick={()=> {
+                setConfirmDeleteGroupExiting(true);
+                setTimeout(()=>{ setShowConfirmDeleteGroup(false); setConfirmDeleteGroupExiting(false); }, 220);
+              }} style={{ flex:1, padding:'12px', backgroundColor:'#374151', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmDeleteGroup} style={{ flex:1, padding:'12px', backgroundColor:'#ef4444', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {showPreviewModal && previewData && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10000,
+            animation: previewExiting ? 'fadeOut 0.3s ease-out forwards' : 'fadeIn 0.3s ease-out',
+          }}
+          onClick={() => {
+            setPreviewExiting(true);
+            setTimeout(() => {
+              setShowPreviewModal(false);
+              setPreviewExiting(false);
+              setPreviewData(null);
+            }, 300);
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '900px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              animation: previewExiting ? 'slideDown 0.3s ease-out forwards' : 'slideUp 0.3s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{
+              color: 'white',
+              fontSize: '24px',
+              fontWeight: 700,
+              marginBottom: '20px',
+              textAlign: 'center',
+            }}>
+              📋 Previsualización de Carga Masiva
+            </h3>
+
+            {/* Summary Stats */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '12px',
+              marginBottom: '24px'
+            }}>
+              <div style={{
+                backgroundColor: '#2ea853',
+                padding: '16px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>
+                  {previewData.totalGrupos}
+                </div>
+                <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
+                  Grupos a Crear
+                </div>
+              </div>
+              <div style={{
+                backgroundColor: '#8b5cf6',
+                padding: '16px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>
+                  {previewData.totalCohortes}
+                </div>
+                <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
+                  Cohortes Nuevas
+                </div>
+              </div>
+              <div style={{
+                backgroundColor: '#3b82f6',
+                padding: '16px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>
+                  {previewData.totalDocentes}
+                </div>
+                <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
+                  Docentes Nuevos
+                </div>
+              </div>
+              <div style={{
+                backgroundColor: '#f59e0b',
+                padding: '16px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>
+                  {previewData.totalAlumnos}
+                </div>
+                <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
+                  Alumnos Nuevos
+                </div>
+              </div>
+            </div>
+
+            {/* Warnings */}
+            {previewData.warnings && previewData.warnings.length > 0 && (
+              <div style={{
+                backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                border: '1px solid #fbbf24',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '20px'
+              }}>
+                <div style={{
+                  color: '#fbbf24',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  marginBottom: '8px'
+                }}>
+                  ⚠️ Advertencias ({previewData.warnings.length}):
+                </div>
+                <div style={{ maxHeight: '150px', overflow: 'auto' }}>
+                  {previewData.warnings.map((warning: string, idx: number) => (
+                    <div key={idx} style={{
+                      color: '#94a3b8',
+                      fontSize: '13px',
+                      marginBottom: '4px',
+                      paddingLeft: '8px'
+                    }}>
+                      • {warning}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Detailed Lists */}
+            <div style={{ marginBottom: '20px' }}>
+              <details style={{ marginBottom: '12px' }}>
+                <summary style={{
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '12px',
+                  backgroundColor: '#334155',
+                  borderRadius: '8px',
+                  marginBottom: '8px'
+                }}>
+                  📚 Grupos ({previewData.grupos.length})
+                </summary>
+                <div style={{ maxHeight: '200px', overflow: 'auto', padding: '8px' }}>
+                  {previewData.grupos.map((grupo: any, idx: number) => (
+                    <div key={idx} style={{
+                      backgroundColor: '#334155',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      marginBottom: '8px',
+                      color: '#94a3b8',
+                      fontSize: '13px'
+                    }}>
+                      <strong style={{ color: 'white' }}>Grupo {grupo.numero}</strong> - {grupo.cohorte}
+                      <br />
+                      Docente: {grupo.docente} | Alumnos: {grupo.totalAlumnos}
+                    </div>
+                  ))}
+                </div>
+              </details>
+
+              {previewData.totalDocentes > 0 && (
+                <details style={{ marginBottom: '12px' }}>
+                  <summary style={{
+                    color: 'white',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '12px',
+                    backgroundColor: '#334155',
+                    borderRadius: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    👨‍🏫 Docentes Nuevos ({previewData.totalDocentes})
+                  </summary>
+                  <div style={{ maxHeight: '200px', overflow: 'auto', padding: '8px' }}>
+                    {previewData.docentes.filter((d: any) => !d.existe).map((docente: any, idx: number) => (
+                      <div key={idx} style={{
+                        backgroundColor: '#334155',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '8px',
+                        color: '#94a3b8',
+                        fontSize: '13px'
+                      }}>
+                        <strong style={{ color: 'white' }}>{docente.matricula}</strong> - {docente.nombre} {docente.primer_apellido}
+                        <br />
+                        {docente.correo}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {previewData.totalAlumnos > 0 && (
+                <details style={{ marginBottom: '12px' }}>
+                  <summary style={{
+                    color: 'white',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '12px',
+                    backgroundColor: '#334155',
+                    borderRadius: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    👨‍🎓 Alumnos Nuevos ({previewData.totalAlumnos})
+                  </summary>
+                  <div style={{ maxHeight: '200px', overflow: 'auto', padding: '8px' }}>
+                    {previewData.alumnos.filter((a: any) => !a.existe).map((alumno: any, idx: number) => (
+                      <div key={idx} style={{
+                        backgroundColor: '#334155',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '8px',
+                        color: '#94a3b8',
+                        fontSize: '13px'
+                      }}>
+                        <strong style={{ color: 'white' }}>{alumno.matricula}</strong> - {alumno.nombre} {alumno.primer_apellido}
+                        <br />
+                        Grupo: {alumno.grupo} | {alumno.correo}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '24px',
+            }}>
+              <button
+                onClick={() => {
+                  setPreviewExiting(true);
+                  setTimeout(() => {
+                    setShowPreviewModal(false);
+                    setPreviewExiting(false);
+                    setPreviewData(null);
+                    setExcelRowsToUpload([]);
+                  }, 300);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  backgroundColor: '#374151',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4b5563';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#374151';
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmBulkUpload}
+                disabled={uploadingFile}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  backgroundColor: uploadingFile ? '#6b7280' : '#2ea853',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: uploadingFile ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: uploadingFile ? 0.6 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!uploadingFile) {
+                    e.currentTarget.style.backgroundColor = '#25883f';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(46, 168, 83, 0.4)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!uploadingFile) {
+                    e.currentTarget.style.backgroundColor = '#2ea853';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }
+                }}
+              >
+                {uploadingFile ? '⏳ Creando...' : '✅ Confirmar y Crear Todo'}
               </button>
             </div>
           </div>

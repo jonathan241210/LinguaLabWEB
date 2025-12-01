@@ -49,6 +49,9 @@ function AlumnosPage() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedStudentEdit, setSelectedStudentEdit] = useState<Alumno | null>(null);
+  const [showConfirmDeleteStudent, setShowConfirmDeleteStudent] = useState(false);
+  const [confirmDeleteStudentExiting, setConfirmDeleteStudentExiting] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState<{ id: number; name: string } | null>(null);
 
   const studentFields: any = [
     { name: 'nombre', label: 'Name(s)', type: 'text', required: true, placeholder: 'E.g.: Juan' },
@@ -236,6 +239,59 @@ function AlumnosPage() {
     } catch (e: any) {
       console.error('Error updating student', e);
       throw e;
+    }
+  };
+
+  const handleDeleteStudentClick = (id_alumno: number, nombre_completo: string) => {
+    setStudentToDelete({ id: id_alumno, name: nombre_completo });
+    setShowConfirmDeleteStudent(true);
+    setConfirmDeleteStudentExiting(false);
+  };
+
+  const confirmDeleteStudent = async () => {
+    if (!studentToDelete) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/alumnos/delete', {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id_alumno: studentToDelete.id })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Error deleting student');
+      }
+
+      // Animación de salida del modal
+      setConfirmDeleteStudentExiting(true);
+      setTimeout(() => {
+        setShowConfirmDeleteStudent(false);
+        setConfirmDeleteStudentExiting(false);
+        setStudentToDelete(null);
+      }, 300);
+
+      setSuccessModal({
+        isOpen: true,
+        message: 'Student deleted successfully',
+        type: 'success',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
+
+      await loadAlumnos();
+    } catch (e: any) {
+      console.error('Error deleting student:', e);
+      setSuccessModal({
+        isOpen: true,
+        message: e.message || 'Error deleting student',
+        type: 'error',
+        onClose: () => setSuccessModal({ isOpen: false, message: '', onClose: () => {} })
+      });
     }
   };
 
@@ -654,6 +710,31 @@ function AlumnosPage() {
                         Edit Info
                       </button>
                       <button
+                        onClick={() => handleDeleteStudentClick(alumno.id_alumno, alumno.nombre_completo)}
+                        style={{
+                          flex: '1 1 calc(50% - 4px)',
+                          padding: '10px 16px',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(239,68,68,0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <i className="bi bi-trash"></i> Delete (TEST)
+                      </button>
+                      <button
                         onClick={() => showToggleConfirmation(alumno)}
                         disabled={isToggling === alumno.id_alumno}
                         style={{
@@ -1060,6 +1141,169 @@ function AlumnosPage() {
                 <p style={{ fontSize: '18px', fontWeight: 600 }}>No statistics available</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showConfirmDeleteStudent && studentToDelete && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10000,
+            animation: confirmDeleteStudentExiting ? 'fadeOut 0.3s ease-out forwards' : 'fadeIn 0.3s ease-out',
+          }}
+          onClick={() => {
+            setConfirmDeleteStudentExiting(true);
+            setTimeout(() => {
+              setShowConfirmDeleteStudent(false);
+              setConfirmDeleteStudentExiting(false);
+              setStudentToDelete(null);
+            }, 300);
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              animation: confirmDeleteStudentExiting ? 'slideDown 0.3s ease-out forwards' : 'slideUp 0.3s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Warning Icon */}
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+            }}>
+              <i className="bi bi-exclamation-triangle-fill" style={{
+                fontSize: '32px',
+                color: '#ef4444'
+              }}></i>
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              color: 'white',
+              fontSize: '24px',
+              fontWeight: 700,
+              marginBottom: '12px',
+              textAlign: 'center',
+            }}>
+              Delete Student
+            </h3>
+
+            {/* Message */}
+            <p style={{
+              color: '#94a3b8',
+              fontSize: '15px',
+              lineHeight: '1.6',
+              marginBottom: '8px',
+              textAlign: 'center',
+            }}>
+              Are you sure you want to delete the student:
+            </p>
+            <p style={{
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: 600,
+              marginBottom: '8px',
+              textAlign: 'center',
+            }}>
+              {studentToDelete.name}
+            </p>
+            <p style={{
+              color: '#ef4444',
+              fontSize: '14px',
+              lineHeight: '1.5',
+              marginBottom: '24px',
+              textAlign: 'center',
+              fontWeight: 500,
+            }}>
+              This action cannot be undone. All student data, including their user account, group assignments, and laboratory results will be permanently deleted.
+            </p>
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '24px',
+            }}>
+              <button
+                onClick={() => {
+                  setConfirmDeleteStudentExiting(true);
+                  setTimeout(() => {
+                    setShowConfirmDeleteStudent(false);
+                    setConfirmDeleteStudentExiting(false);
+                    setStudentToDelete(null);
+                  }, 300);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  backgroundColor: '#334155',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#475569';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#334155';
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteStudent}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dc2626';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ef4444';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                Yes, Delete Student
+              </button>
+            </div>
           </div>
         </div>
       )}
