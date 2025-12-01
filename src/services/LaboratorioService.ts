@@ -22,6 +22,7 @@ export class LaboratorioService {
         a.nivel,
         a.numero_palabras,
         a.unidades_seleccionadas,
+        a.id_vocabulario_fk,
         v.archivo_original AS vocabulario_nombre,
         j.nombre AS tipo_juego,
         j.tipo_juego AS tipo_juego_code,
@@ -50,23 +51,79 @@ export class LaboratorioService {
       ORDER BY a.fecha_creacion DESC
     `;
 
-    const laboratorios = await query(sqlQuery);
-    return (laboratorios || []) as LaboratorioDetallado[];
+    const laboratorios = await query(sqlQuery) as LaboratorioDetallado[];
+    
+    console.log('=== PROCESANDO UNIDADES DE LABORATORIOS ===');
+    
+    // Para cada laboratorio, obtener los nombres de las unidades
+    for (const lab of laboratorios) {
+      console.log(`Lab ${lab.id_laboratorio}: unidades_seleccionadas =`, lab.unidades_seleccionadas);
+      if (lab.unidades_seleccionadas) {
+        (lab as any).unidades_nombres = await this.obtenerNombresUnidades(
+          lab.unidades_seleccionadas, 
+          lab.id_vocabulario_fk
+        );
+        console.log(`Lab ${lab.id_laboratorio}: unidades_nombres =`, (lab as any).unidades_nombres);
+      } else {
+        console.log(`Lab ${lab.id_laboratorio}: Sin unidades seleccionadas`);
+      }
+    }
+    
+    console.log('===========================================');
+    
+    return laboratorios || [];
   }
 
   /**
    * Obtener nombres de unidades basados en sus IDs
    */
-  static obtenerNombresUnidades(unidades_seleccionadas: string | null): string {
+  static async obtenerNombresUnidades(
+    unidades_seleccionadas: string | any[] | null, 
+    id_vocabulario?: number
+  ): Promise<string> {
     if (!unidades_seleccionadas) return 'All units';
     
     try {
-      const ids = JSON.parse(unidades_seleccionadas);
-      if (Array.isArray(ids) && ids.length > 0) {
-        return `Units: ${ids.join(', ')}`;
+      // Si ya es un array, usarlo directamente; si no, parsearlo
+      const ids = Array.isArray(unidades_seleccionadas) 
+        ? unidades_seleccionadas 
+        : JSON.parse(unidades_seleccionadas);
+        
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return 'All units';
       }
-      return 'All units';
-    } catch {
+      
+      // Si se proporcionó id_vocabulario, verificar si se seleccionaron todas las unidades
+      if (id_vocabulario) {
+        const totalUnidades = await query(
+          'SELECT COUNT(*) as total FROM vocabulario_unidades WHERE id_vocabulario_fk = ? AND activo = 1',
+          [id_vocabulario]
+        );
+        
+        const total = (totalUnidades as any)[0]?.total || 0;
+        console.log(`🔍 Checking all units: vocab_id=${id_vocabulario}, selected=${ids.length}, total=${total}`);
+        
+        if (total > 0 && ids.length >= total) {
+          console.log('✅ All units selected, returning "All units"');
+          return 'All units';
+        }
+      }
+      
+      // Consultar los nombres de las unidades
+      const placeholders = ids.map(() => '?').join(',');
+      const unidades = await query(
+        `SELECT numero_unidad, nombre_unidad FROM vocabulario_unidades WHERE id_unidad IN (${placeholders}) ORDER BY id_unidad`,
+        ids
+      );
+      
+      if (unidades && Array.isArray(unidades) && unidades.length > 0) {
+        const nombres = (unidades as any[]).map(u => `${u.numero_unidad} ${u.nombre_unidad}`);
+        return `Units: ${nombres.join(', ')}`;
+      }
+      
+      return `Units: ${ids.join(', ')}`;
+    } catch (error) {
+      console.error('Error parsing unidades_seleccionadas:', error);
       return 'All units';
     }
   }
@@ -340,16 +397,11 @@ export class LaboratorioService {
 
     const id_actividad = (result as any).insertId;
 
-    // Si se especificaron unidades, crear relación en juego_unidad
-    if (data.unidades_seleccionadas && data.unidades_seleccionadas.length > 0) {
-      const insertUnidadPromises = data.unidades_seleccionadas.map((id_unidad: number) => 
-        query(
-          'INSERT INTO juego_unidad (id_juego_ju_fk, id_unidad_ju_fk) VALUES (?, ?)',
-          [id_actividad, id_unidad]
-        )
-      );
-      await Promise.all(insertUnidadPromises);
-    }
+    // Las unidades ya se guardan en el campo unidades_seleccionadas de actividades (como JSON)
+    // No necesitamos insertar en juego_unidad porque:
+    // 1. La FK referencia la tabla 'unidades' que está vacía
+    // 2. Los datos reales están en 'vocabulario_unidades'
+    // 3. Ya tenemos toda la info necesaria en el campo JSON de actividades
 
     return id_actividad;
   }

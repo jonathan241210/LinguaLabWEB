@@ -1898,30 +1898,32 @@ function DocenteDashboard() {
               </div>
 
               {/* Additional Info */}
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                padding: '16px',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <i className="bi bi-info-circle" style={{ fontSize: '24px', color: '#60a5fa' }}></i>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'white', marginBottom: '4px' }}>
-                    Estado del Estudiante
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
-                    {selectedStudent.promedio >= 70 
-                      ? '✅ Excelente desempeño. Sigue así!'
-                      : selectedStudent.promedio >= 60
-                      ? '⚠️ Buen progreso, pero puede mejorar.'
-                      : '❌ Necesita apoyo adicional para mejorar.'
-                    }
+              {(selectedStudent.labs_completados > 0 || selectedStudent.promedio > 0) && (
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <i className="bi bi-info-circle" style={{ fontSize: '24px', color: '#60a5fa' }}></i>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'white', marginBottom: '4px' }}>
+                      Estado del Estudiante
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
+                      {selectedStudent.promedio >= 70 
+                        ? '✅ Excelente desempeño. Sigue así!'
+                        : selectedStudent.promedio >= 60
+                        ? '⚠️ Buen progreso, pero puede mejorar.'
+                        : '❌ Necesita apoyo adicional para mejorar.'
+                      }
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}

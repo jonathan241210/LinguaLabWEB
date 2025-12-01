@@ -162,6 +162,12 @@ export default function LaboratoriosPage() {
       
       if (labsRes.ok) {
         const data = await labsRes.json()
+        console.log('Laboratorios con unidades:', data.laboratorios.map((l: any) => ({
+          id: l.id_laboratorio,
+          titulo: l.titulo,
+          unidades_seleccionadas: l.unidades_seleccionadas,
+          unidades_nombres: l.unidades_nombres
+        })))
         setLaboratorios(data.laboratorios || [])
       }
       
@@ -208,11 +214,18 @@ export default function LaboratoriosPage() {
   }
 
   const toggleUnidad = (unidadId: number) => {
-    setSelectedUnidades(prev => 
-      prev.includes(unidadId) 
+    setSelectedUnidades(prev => {
+      const newSelection = prev.includes(unidadId) 
         ? prev.filter(id => id !== unidadId)
-        : [...prev, unidadId]
-    )
+        : [...prev, unidadId];
+      
+      // Automáticamente cambiar el modo a 'por_unidad' cuando se seleccionan unidades
+      if (newSelection.length > 0) {
+        setModoSeleccion('por_unidad');
+      }
+      
+      return newSelection;
+    });
   }
 
   const handleCreateLaboratorio = async () => {
@@ -237,17 +250,27 @@ export default function LaboratoriosPage() {
     }
 
     try {
+      const dataToSend = {
+        id_plantilla: selectedPlantilla.id_plantilla,
+        id_vocabulario: selectedVocabulario,
+        titulo,
+        descripcion,
+        numero_palabras: numeroPalabras,
+        unidades_seleccionadas: modoSeleccion === 'por_unidad' ? selectedUnidades : null,
+        modo_seleccion: modoSeleccion,
+      };
+      
+      console.log('📤 Creating lab with data:', {
+        modoSeleccion,
+        selectedUnidades,
+        unidades_seleccionadas: dataToSend.unidades_seleccionadas
+      });
+      
       const res = await fetch('/api/laboratorios/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id_plantilla: selectedPlantilla.id_plantilla,
-          id_vocabulario: selectedVocabulario,
-          titulo,
-          descripcion,
-          numero_palabras: numeroPalabras,
-          unidades_seleccionadas: modoSeleccion === 'por_unidad' ? selectedUnidades : null,
-          modo_seleccion: modoSeleccion,
+          ...dataToSend,
           nivel: vocabularios.find(v => v.id_vocabulario === selectedVocabulario)?.nivel || 'A1',
           // Nuevos campos de publicación
           published_scope: publishedScope,
@@ -333,9 +356,10 @@ export default function LaboratoriosPage() {
 
       if (res.ok) {
         fetchData()
+        const visibilityText = newScope === 'teachers' ? 'Teachers' : newScope === 'students' ? 'Students (Lab)' : 'Admin Only'
         setSuccessModal({
           isOpen: true,
-          message: `Visibility updated to ${newScope === 'teachers' ? 'Teachers' : 'Admin Only'}!`,
+          message: `Visibility updated to ${visibilityText}!`,
           type: 'success',
           onClose: () => setSuccessModal(prev => ({ ...prev, isOpen: false }))
         })
@@ -1041,16 +1065,7 @@ export default function LaboratoriosPage() {
                     <i className="bi bi-book"></i> {(lab as any).vocabulario_nombre || 'Unknown vocabulary'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#16a34a' }}>
-                    <i className="bi bi-bookshelf"></i> {(() => {
-                      const unidadesData = (lab as any).unidades_seleccionadas;
-                      if (!unidadesData) return 'All units';
-                      try {
-                        const ids = JSON.parse(unidadesData);
-                        return Array.isArray(ids) && ids.length > 0 ? `Units: ${ids.join(', ')}` : 'All units';
-                      } catch {
-                        return 'All units';
-                      }
-                    })()}
+                    <i className="bi bi-bookshelf"></i> {(lab as any).unidades_nombres || 'All units'}
                   </div>
                 </div>
 
@@ -1519,6 +1534,7 @@ export default function LaboratoriosPage() {
                           setSelectedUnidades([]);
                         } else {
                           setSelectedUnidades(unidades.map(u => u.id_unidad));
+                          setModoSeleccion('por_unidad'); // Cambiar modo cuando se seleccionan todas
                         }
                       }}
                       style={{
