@@ -11,6 +11,7 @@ interface Alumno {
   nombre_completo: string;
   correo: string;
   programa: string;
+  id_programa?: number;
   nivel: string;
   usuario_activo: number;
   estado: 'disponible' | 'asignado' | 'inactivo';
@@ -35,6 +36,7 @@ function AlumnosPage() {
   const [estadoFilter, setEstadoFilter] = useState<'todos' | 'disponible' | 'asignado' | 'inactivo'>('todos');
   const [programaFilter, setProgramaFilter] = useState<string>('todos');
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [programasCatalogo, setProgramasCatalogo] = useState<Array<{id: number, nombre: string}>>([]);
   const [isToggling, setIsToggling] = useState<number | null>(null);
   const [confirmToggleModal, setConfirmToggleModal] = useState<{
     isOpen: boolean;
@@ -75,7 +77,13 @@ function AlumnosPage() {
     try {
       const res = await fetch('/api/alumnos/detailed');
       const data = await res.json();
-      if (data.success) setAlumnos(data.data);
+      if (data.success) {
+        setAlumnos(data.data);
+        // Debug: ver qué programas tienen los alumnos
+        const programasAlumnos = [...new Set(data.data.map((a: any) => a.programa))];
+        console.log('Programas de alumnos en BD:', programasAlumnos);
+        console.log('Primer alumno completo:', data.data[0]);
+      }
     } catch (e) {
       console.error('Error al cargar alumnos', e);
     }
@@ -83,6 +91,7 @@ function AlumnosPage() {
 
   useEffect(() => {
     loadAlumnos();
+    loadProgramas();
     
     // Check for student parameter in URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -97,6 +106,28 @@ function AlumnosPage() {
       }
     }
   }, []);
+
+  const loadProgramas = async () => {
+    try {
+      const res = await fetch('/api/catalogs/programas');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        const programas = data.data.map((p: any) => ({
+          id: p.id_programa,
+          nombre: p.nombre || p.nombre_programa
+        })).filter((p: any) => p.nombre);
+        setProgramasCatalogo(programas);
+        console.log('Programas cargados:', programas);
+      } else {
+        // Fallback vacío, sin programas predefinidos
+        setProgramasCatalogo([]);
+        console.log('No hay programas en el catálogo');
+      }
+    } catch (e) {
+      console.error('Error al cargar programas', e);
+      setProgramasCatalogo([]);
+    }
+  };
 
   const handleAddStudentModal = async (formData: Record<string, string>) => {
     try {
@@ -332,7 +363,18 @@ function AlumnosPage() {
                        a.nombre_completo.toLowerCase().includes(term) ||
                        a.correo.toLowerCase().includes(term);
     const matchEstado = estadoFilter === 'todos' || a.estado === estadoFilter;
-    const matchPrograma = programaFilter === 'todos' || a.programa.toLowerCase().includes(programaFilter.toLowerCase());
+    
+    // Filtro de programa: buscar en programa_grupo por nombre
+    let matchPrograma = programaFilter === 'todos';
+    if (!matchPrograma && a.programa_grupo && a.programa_grupo !== 'No program') {
+      const programaGrupo = a.programa_grupo.toLowerCase();
+      const programaSeleccionado = programasCatalogo.find(p => p.id.toString() === programaFilter);
+      if (programaSeleccionado) {
+        matchPrograma = programaGrupo.includes(programaSeleccionado.nombre.toLowerCase()) || 
+                       programaSeleccionado.nombre.toLowerCase().includes(programaGrupo);
+      }
+    }
+    
     return matchSearch && matchEstado && matchPrograma;
   });
 
@@ -354,8 +396,8 @@ function AlumnosPage() {
     }
   };
 
-  // Obtener lista única de programas para el filtro
-  const programasUnicos = [...new Set(alumnos.map(a => a.programa))].filter(p => p !== 'No program');
+  // Usar programas del catálogo en lugar de los de los alumnos
+  const programasUnicos = programasCatalogo;
 
   return (
     <>
@@ -535,7 +577,8 @@ function AlumnosPage() {
                   fontSize: '13px', 
                   outline: 'none', 
                   cursor: 'pointer', 
-                  backgroundColor: 'white' 
+                  backgroundColor: 'white',
+                  color: '#1e3a5f'
                 }}
               >
                 <option value="todos">All Status</option>
@@ -554,12 +597,13 @@ function AlumnosPage() {
                   fontSize: '13px', 
                   outline: 'none', 
                   cursor: 'pointer', 
-                  backgroundColor: 'white' 
+                  backgroundColor: 'white',
+                  color: '#1e3a5f'
                 }}
               >
                 <option value="todos">All Programs</option>
-                {programasUnicos.map(programa => (
-                  <option key={programa} value={programa}>{programa}</option>
+                {programasCatalogo && programasCatalogo.length > 0 && programasCatalogo.map((programa, index) => (
+                  <option key={`${programa.id}-${index}`} value={programa.id.toString()}>{programa.nombre}</option>
                 ))}
               </select>
             </div>
@@ -628,7 +672,7 @@ function AlumnosPage() {
                         <strong>Email:</strong> <span style={{ color: '#666' }}>{alumno.correo}</span>
                       </div>
                       <div style={{ marginBottom: '6px' }}>
-                        <strong>Program:</strong> <span style={{ color: '#666' }}>{alumno.programa}</span>
+                        <strong>Program:</strong> <span style={{ color: '#666' }}>{alumno.programa_grupo || 'No program'}</span>
                       </div>
                       <div style={{ marginBottom: '6px' }}>
                         <strong>Level:</strong> <span style={{ color: '#666' }}>{alumno.nivel}</span>

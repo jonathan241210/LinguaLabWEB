@@ -51,6 +51,7 @@ export class AlumnoService {
         CONCAT(u.nombre, ' ', u.primer_apellido, ' ', IFNULL(u.segundo_apellido, '')) AS nombre_completo,
         u.correo,
         IFNULL(p.nombre, 'No program') AS programa,
+        a.id_programa_alumno_fk AS id_programa,
         IFNULL(n.nombre, 'No level') AS nivel,
         u.activo AS usuario_activo,
         CASE 

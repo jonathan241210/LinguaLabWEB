@@ -872,7 +872,7 @@ function DocenteDashboard() {
                       gap: '8px'
                     }}>
                       <i className="bi bi-graph-up-arrow"></i>
-                      Estadísticas Generales del Grupo
+                      General Group Statistics
                     </h3>
                     <div style={{
                       display: 'grid',
@@ -886,7 +886,7 @@ function DocenteDashboard() {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Estudiantes
+                          Students
                         </div>
                         <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--color-primary-green-light)' }}>
                           {grupoStats.allStudents?.length || grupoStats.groupInfo?.total_students || 0}
@@ -900,7 +900,7 @@ function DocenteDashboard() {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Promedio Grupal
+                          Group Average
                         </div>
                         <div style={{ 
                           fontSize: '28px', 
@@ -918,7 +918,7 @@ function DocenteDashboard() {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Labs Completados
+                          Labs Completed
                         </div>
                         <div style={{ fontSize: '28px', fontWeight: '700', color: '#60a5fa' }}>
                           {grupoStats.groupStats?.total_labs_completed || 0}
@@ -932,7 +932,7 @@ function DocenteDashboard() {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Labs Aprobados
+                          Labs Passed
                         </div>
                         <div style={{ fontSize: '28px', fontWeight: '700', color: '#4ade80' }}>
                           {grupoStats.groupStats?.total_labs_passed || 0}
@@ -946,7 +946,7 @@ function DocenteDashboard() {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Experiencia Total
+                          Total Experience
                         </div>
                         <div style={{ fontSize: '28px', fontWeight: '700', color: '#c084fc' }}>
                           {grupoStats.groupStats?.total_xp ? Math.round(grupoStats.groupStats.total_xp).toLocaleString() : '0'}
@@ -960,7 +960,7 @@ function DocenteDashboard() {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Actividades Asignadas
+                          Assigned Activities
                         </div>
                         <div style={{ fontSize: '28px', fontWeight: '700', color: '#fb923c' }}>
                           {grupoStats.assignedLabs?.length || 0}
@@ -974,7 +974,7 @@ function DocenteDashboard() {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Tasa de Aprobación
+                          Pass Rate
                         </div>
                         <div style={{ fontSize: '28px', fontWeight: '700', color: '#22d3ee' }}>
                           {grupoStats.groupStats?.total_labs_attempted > 0 
@@ -1042,7 +1042,7 @@ function DocenteDashboard() {
                                   {student.nombre_completo}
                                 </div>
                                 <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-                                  {student.matricula || 'No matricula'}
+                                  {student.matricula || 'No ID'}
                                 </div>
                               </div>
                             </div>
@@ -1793,7 +1793,7 @@ function DocenteDashboard() {
                       {selectedStudent.nombre_completo}
                     </h2>
                     <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)' }}>
-                      {selectedStudent.matricula || 'No matricula'}
+                      {selectedStudent.matricula || 'No ID'}
                     </div>
                   </div>
                 </div>
@@ -1814,7 +1814,7 @@ function DocenteDashboard() {
                     borderRadius: '8px'
                   }}>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                      Labs Completados
+                      Labs Completed
                     </div>
                     <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--color-primary-green-light)' }}>
                       {selectedStudent.labs_completados || 0}
@@ -1826,7 +1826,7 @@ function DocenteDashboard() {
                     borderRadius: '8px'
                   }}>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                      Promedio
+                      Average
                     </div>
                     <div style={{
                       fontSize: '28px',
@@ -1842,7 +1842,7 @@ function DocenteDashboard() {
                     borderRadius: '8px'
                   }}>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                      Experiencia Total
+                      Total Experience
                     </div>
                     <div style={{ fontSize: '28px', fontWeight: '700', color: '#c084fc' }}>
                       {selectedStudent.exp_total ? Math.round(selectedStudent.exp_total).toLocaleString() : '0'}
@@ -1854,7 +1854,7 @@ function DocenteDashboard() {
                     borderRadius: '8px'
                   }}>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                      Tiempo Promedio
+                      Average Time
                     </div>
                     <div style={{ fontSize: '28px', fontWeight: '700', color: '#fb923c' }}>
                       {selectedStudent.tiempo_promedio 
@@ -1868,7 +1868,7 @@ function DocenteDashboard() {
                     borderRadius: '8px'
                   }}>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                      Labs Aprobados
+                      Labs Passed
                     </div>
                     <div style={{ fontSize: '28px', fontWeight: '700', color: '#4ade80' }}>
                       {selectedStudent.labs_aprobados || 0}
@@ -1881,7 +1881,7 @@ function DocenteDashboard() {
               <div style={{ marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'white', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <i className="bi bi-graph-up"></i>
-                  Progreso del Estudiante
+                  Student Progress
                 </h3>
                 <div style={{
                   background: 'rgba(255,255,255,0.05)',
@@ -1892,7 +1892,8 @@ function DocenteDashboard() {
                   <StudentPerformanceChart data={{
                     nombre_completo: selectedStudent.nombre_completo,
                     labs_completed: selectedStudent.labs_completados || 0,
-                    average_score: selectedStudent.promedio || 0
+                    average_score: selectedStudent.promedio || 0,
+                    labs_publicados: selectedStudent.labs_publicados || 0
                   }} />
                 </div>
               </div>
@@ -1911,14 +1912,14 @@ function DocenteDashboard() {
                   <i className="bi bi-info-circle" style={{ fontSize: '24px', color: '#60a5fa' }}></i>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '14px', fontWeight: '600', color: 'white', marginBottom: '4px' }}>
-                      Estado del Estudiante
+                      Student Status
                     </div>
                     <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
                       {selectedStudent.promedio >= 70 
-                        ? '✅ Excelente desempeño. Sigue así!'
+                        ? '✅ Excellent performance. Keep it up!'
                         : selectedStudent.promedio >= 60
-                        ? '⚠️ Buen progreso, pero puede mejorar.'
-                        : '❌ Necesita apoyo adicional para mejorar.'
+                        ? '⚠️ Good progress, but can improve.'
+                        : '❌ Needs additional support to improve.'
                       }
                     </div>
                   </div>

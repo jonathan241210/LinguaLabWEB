@@ -215,13 +215,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         SUM(CASE WHEN r.aprobado = 1 THEN 1 ELSE 0 END) AS labs_aprobados,
         AVG(CASE WHEN r.completado = 1 THEN r.puntaje ELSE NULL END) AS promedio,
         AVG(CASE WHEN r.completado = 1 THEN r.tiempo_segundos ELSE NULL END) AS tiempo_promedio,
-        SUM(r.experiencia_ganada) AS exp_total
+        SUM(r.experiencia_ganada) AS exp_total,
+        (
+          SELECT COUNT(DISTINCT actg.id_actividad_ag_fk)
+          FROM actividad_grupo actg
+          INNER JOIN actividades act ON actg.id_actividad_ag_fk = act.id_actividad
+          WHERE actg.id_grupo_ag_fk = ag.id_grupo_ag_fk
+            AND act.publicado = 1
+        ) AS labs_publicados,
+        (
+          SELECT COUNT(DISTINCT actg.id_actividad_ag_fk)
+          FROM actividad_grupo actg
+          INNER JOIN actividades act2 ON actg.id_actividad_ag_fk = act2.id_actividad
+          WHERE actg.id_grupo_ag_fk = ag.id_grupo_ag_fk
+        ) AS labs_asignados_extra
       FROM alumnos a
       INNER JOIN usuarios u ON a.id_usuario_alumno_fk = u.id_usuario
       INNER JOIN alumno_grupo ag ON a.id_alumno = ag.id_alumno_ag_fk
       LEFT JOIN resultados r ON a.id_alumno = r.id_alumno_resultado_fk
       WHERE ag.id_grupo_ag_fk = ? AND ag.activo = 1
-      GROUP BY a.id_alumno, u.nombre, u.primer_apellido, u.segundo_apellido
+      GROUP BY a.id_alumno, u.nombre, u.primer_apellido, u.segundo_apellido, ag.id_grupo_ag_fk
       ORDER BY promedio DESC`,
       [id_grupo]
     );

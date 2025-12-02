@@ -17,6 +17,7 @@ export interface LoginResponse {
     nombre: string;
     rol: string;
     matricula?: string;
+    correo?: string;
   };
 }
 

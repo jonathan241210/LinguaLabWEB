@@ -339,15 +339,16 @@ interface StudentPerformanceProps {
     nombre_completo: string
     labs_completed: number
     average_score: number
+    labs_publicados: number
   }
 }
 
 export function StudentPerformanceChart({ data }: StudentPerformanceProps) {
   const chartData = {
-    labels: ['Completado', 'Pendiente'],
+    labels: ['Completed', 'Pending'],
     datasets: [
       {
-        data: [data.labs_completed, Math.max(0, 20 - data.labs_completed)],
+        data: [data.labs_completed, Math.max(0, data.labs_publicados - data.labs_completed)],
         backgroundColor: [
           'rgba(46, 168, 83, 0.8)',
           'rgba(226, 232, 240, 0.8)'
@@ -425,7 +426,7 @@ export function StudentPerformanceChart({ data }: StudentPerformanceProps) {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            Promedio General
+            Overall Average
           </div>
           <div style={{ 
             fontSize: '48px', 
@@ -449,7 +450,7 @@ export function StudentPerformanceChart({ data }: StudentPerformanceProps) {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>
-              Completados
+              Completed
             </div>
             <div style={{ fontSize: '32px', fontWeight: '700', color: '#4ade80' }}>
               {data.labs_completed}
@@ -462,10 +463,10 @@ export function StudentPerformanceChart({ data }: StudentPerformanceProps) {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>
-              Pendientes
+              Pending
             </div>
             <div style={{ fontSize: '32px', fontWeight: '700', color: '#94a3b8' }}>
-              {Math.max(0, 20 - data.labs_completed)}
+              {Math.max(0, data.labs_publicados - data.labs_completed)}
             </div>
           </div>
         </div>
