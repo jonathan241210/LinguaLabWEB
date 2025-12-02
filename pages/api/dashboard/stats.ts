@@ -7,17 +7,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Count total labs and get the last created
-    const juegosCountData = await query(
-      `SELECT COUNT(*) as total FROM juegos`
+    // Count total labs (actividades) and get the last created
+    const actividadesCountData = await query(
+      `SELECT COUNT(*) as total 
+       FROM actividades a
+       INNER JOIN juegos j ON a.id_juego_actividad_fk = j.id_juego
+       WHERE j.es_plantilla = TRUE`
     ) as any[];
     
-    const juegosLastData = await query(
-      `SELECT nombre as last_nombre FROM juegos ORDER BY fecha_creacion DESC LIMIT 1`
+    const actividadesLastData = await query(
+      `SELECT a.titulo as last_nombre 
+       FROM actividades a
+       INNER JOIN juegos j ON a.id_juego_actividad_fk = j.id_juego
+       WHERE j.es_plantilla = TRUE
+       ORDER BY a.fecha_creacion DESC 
+       LIMIT 1`
     ) as any[];
 
-    const totalJuegos = juegosCountData?.[0]?.total || 0;
-    const lastJuegoNombre = juegosLastData?.[0]?.last_nombre || null;
+    const totalActividades = actividadesCountData?.[0]?.total || 0;
+    const lastActividadNombre = actividadesLastData?.[0]?.last_nombre || null;
 
     // Count total groups and get the last created
     const gruposCountData = await query(
@@ -67,9 +75,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const stats = [
       {
         label: 'Labs',
-        value: totalJuegos,
-        subtitle: totalJuegos > 0 ? `${totalJuegos} labs available` : 'No labs yet',
-        lastAdded: lastJuegoNombre || undefined,
+        value: totalActividades,
+        subtitle: totalActividades > 0 ? `${totalActividades} labs available` : 'No labs yet',
+        lastAdded: lastActividadNombre || undefined,
       },
       {
         label: 'Groups',

@@ -47,9 +47,16 @@ function AdminDashboard() {
         if (response.ok) {
           const data = await response.json();
           // Agregar los iconos grandes a los datos
+          const routes = [
+            '/dashboard/admin/laboratorios',
+            '/dashboard/admin/grupos',
+            '/dashboard/admin/alumnos',
+            '/dashboard/admin/docentes'
+          ];
           const statsWithIcons = data.map((stat: any, idx: number) => ({
             ...stat,
             icon: [IconsLarge.flask, IconsLarge.group, IconsLarge.students, IconsLarge.teacher][idx],
+            route: routes[idx],
           }));
           setStats(statsWithIcons);
         } else {
@@ -374,114 +381,111 @@ function AdminDashboard() {
         }
       `}</style>
 
-      {/* Estadísticas */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '20px', marginBottom: '40px' }}>
-            {stats.map((stat, idx) => (
-              <div
-                key={idx}
-                className="stat-card animate-scale-in"
-                style={{
-                  animationDelay: `${idx * 0.1}s`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
-                }}
-              >
-                {/* Icono grande a la izquierda */}
-                <div style={{
-                  fontSize: '64px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--color-primary-green)',
-                  minWidth: '100px',
-                  minHeight: '100px',
-                }}>
-                  {stat.icon}
-                </div>
+      {/* Dashboard Stats */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(2, 1fr)', 
+        gap: '24px',
+        maxWidth: '1400px',
+        margin: '0 auto',
+        padding: '40px 20px'
+      }}>
+        {stats.map((stat, idx) => (
+          <div
+            key={idx}
+            className="stat-card animate-scale-in"
+            style={{
+              animationDelay: `${idx * 0.1}s`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '20px',
+              padding: '32px',
+            }}
+          >
+            {/* Icon */}
+            <div style={{
+              fontSize: '72px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-primary-green)',
+              minWidth: '110px',
+              minHeight: '110px',
+            }}>
+              {stat.icon}
+            </div>
 
-                {/* Información a la derecha */}
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontSize: '24px',
-                    fontWeight: 'bold',
-                    color: 'var(--color-dark-blue)',
-                    marginBottom: '4px',
-                  }}>
-                    {stat.value}
-                  </div>
-                  <div style={{
-                    fontSize: '12px',
-                    color: 'var(--color-gray-dark)',
-                    fontWeight: 500,
-                    marginBottom: '6px',
-                  }}>
-                    {stat.label}
-                  </div>
-                  {stat.subtitle && (
-                    <div style={{
-                      fontSize: '11px',
-                      color: 'var(--color-gray)',
-                      fontStyle: 'italic',
-                    }}>
-                      {stat.subtitle}
-                    </div>
-                  )}
-                  {stat.lastAdded && (
-                    <div style={{
-                      fontSize: '11px',
-                      color: 'var(--color-primary-green)',
-                      fontWeight: 600,
-                      marginTop: '4px',
-                    }}>
-                      Last: {stat.lastAdded}
-                    </div>
-                  )}
-                </div>
+            {/* Info */}
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontSize: '36px',
+                fontWeight: 'bold',
+                color: 'var(--color-dark-blue)',
+                marginBottom: '8px',
+              }}>
+                {stat.value}
               </div>
-            ))}
-          </div>
-
-          {/* Sección TOOLS */}
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-dark-blue)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Tools
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px' }}>
-              {tools.map((tool, idx) => (
-                <div
-                  key={idx}
-                  className="tool-button animate-slide-in-right"
-                  style={{ animationDelay: `${idx * 0.1}s` }}
-                  onClick={() => handleToolClick(tool.action)}
-                >
-                  <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '48px', display: 'flex', alignItems: 'center', color: 'var(--color-primary-green)' }}>{tool.icon}</span>
-                    {/* Icono pequeño de + */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '-8px',
-                      right: '-8px',
-                      width: '32px',
-                      height: '32px',
-                      backgroundColor: 'var(--color-primary-green)',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                      color: 'white',
-                      fontWeight: 'bold',
-                    }}>
-                      +
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-dark-blue)', textAlign: 'center' }}>
-                    {tool.label}
-                  </span>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--color-gray-dark)',
+                fontWeight: 600,
+                marginBottom: '8px',
+              }}>
+                {stat.label}
+              </div>
+              {stat.subtitle && (
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--color-gray)',
+                  fontStyle: 'italic',
+                }}>
+                  {stat.subtitle}
                 </div>
-              ))}
-        </div>
+              )}
+              {stat.lastAdded && (
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--color-primary-green)',
+                  fontWeight: 600,
+                  marginTop: '6px',
+                }}>
+                  Last: {stat.lastAdded}
+                </div>
+              )}
+            </div>
+
+            {/* View Button */}
+            <button
+              onClick={() => {
+                if ((stat as any).route) {
+                  window.location.href = (stat as any).route;
+                }
+              }}
+              style={{
+                background: 'var(--color-primary-green)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px 24px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 600,
+                transition: 'all 0.3s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-primary-green-dark)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-primary-green)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              View
+            </button>
+          </div>
+        ))}
       </div>
     </DashboardLayout>
   );

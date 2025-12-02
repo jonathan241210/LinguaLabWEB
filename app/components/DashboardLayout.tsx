@@ -443,7 +443,7 @@ export default function DashboardLayout({
           />
           {!sidebarCollapsed && (
             <div style={{ textAlign: 'center', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-              <p style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', opacity: 0.7 }}>Principal</p>
+              <p style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', opacity: 0.7 }}>Main</p>
               <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: 'bold' }}>{title}</p>
             </div>
           )}
@@ -453,7 +453,7 @@ export default function DashboardLayout({
         <nav style={{ flex: 1 }}>
           {!sidebarCollapsed && (
             <p style={{ fontSize: '12px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '16px', letterSpacing: '1px' }}>
-              Menú<br />Main
+              MAIN
             </p>
           )}
           {finalMenuItems.map((item) => (
