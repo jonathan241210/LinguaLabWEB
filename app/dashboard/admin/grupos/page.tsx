@@ -955,7 +955,7 @@ function GruposPage() {
               }}
             >
               <i className="bi bi-file-earmark-excel" style={{ fontSize: '18px' }}></i>
-              Carga Masiva de Grupos
+              Bulk Upload Groups
             </button>
           </div>
           <div style={{ display:'flex', gap:'24px', marginBottom:'24px', flexWrap:'wrap' }}>
@@ -1723,10 +1723,10 @@ function GruposPage() {
             <div style={{ marginBottom: '24px', paddingRight: '40px' }}>
               <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <i className="bi bi-file-earmark-excel" style={{ fontSize: '28px', color: '#8b5cf6' }}></i>
-                Carga Masiva de Grupos
+                Bulk Upload Groups
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', margin: 0 }}>
-                Crea múltiples grupos y relaciones con un solo archivo Excel
+                Create multiple groups and relationships with a single Excel file
               </p>
             </div>
 
@@ -1740,14 +1740,14 @@ function GruposPage() {
             }}>
               <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="bi bi-info-circle"></i>
-                Instrucciones
+                Instructions
               </h3>
               <ol style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', margin: 0, paddingLeft: '20px' }}>
-                <li style={{ marginBottom: '8px' }}>Descarga la plantilla de Excel haciendo clic en el botón de abajo</li>
-                <li style={{ marginBottom: '8px' }}>Llena el archivo con los datos de grupos, docentes y alumnos</li>
-                <li style={{ marginBottom: '8px' }}>El sistema creará automáticamente usuarios nuevos si no existen</li>
-                <li style={{ marginBottom: '8px' }}>Guarda el archivo y súbelo usando el botón "Seleccionar Archivo"</li>
-                <li>El sistema creará grupos, usuarios y relaciones automáticamente</li>
+                <li style={{ marginBottom: '8px' }}>Download the Excel template by clicking the button below</li>
+                <li style={{ marginBottom: '8px' }}>Fill the file with group, teacher and student data</li>
+                <li style={{ marginBottom: '8px' }}>The system will automatically create new users if they don't exist</li>
+                <li style={{ marginBottom: '8px' }}>Save the file and upload it using the "Select File" button</li>
+                <li>The system will create groups, users and relationships automatically</li>
               </ol>
             </div>
 
@@ -1760,36 +1760,36 @@ function GruposPage() {
               marginBottom: '24px'
             }}>
               <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
-                📋 Estructura del Excel
+                Excel Structure
               </h3>
               <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
-                <p style={{ marginBottom: '12px', fontWeight: '600' }}>Columnas del Grupo:</p>
+                <p style={{ marginBottom: '12px', fontWeight: '600' }}>Group Columns:</p>
                 <ul style={{ margin: 0, paddingLeft: '20px', marginBottom: '16px' }}>
-                  <li><strong>Número de Grupo:</strong> Número (1, 2, 3, 4...)</li>
-                  <li><strong>Cuatrimestre:</strong> Número del cuatrimestre (1 al 12)</li>
-                  <li><strong>Código Programa:</strong> Código del programa (ver hoja "Catálogos")</li>
-                  <li><strong>Código Nivel:</strong> TSU o ING/LIC</li>
-                  <li><strong>Año Ingreso:</strong> Año (2025, 2024, etc.)</li>
-                  <li><strong>Cuatrimestre Inicial:</strong> Número (1, 2, 3...)</li>
-                  <li><strong>Estado Prácticas:</strong> SI o NO</li>
+                  <li><strong>Group Number:</strong> Number (1, 2, 3, 4...)</li>
+                  <li><strong>Quarter:</strong> Quarter number (1 to 12)</li>
+                  <li><strong>Program Code:</strong> Program code (see "Catalogs" sheet)</li>
+                  <li><strong>Level Code:</strong> TSU or ING/LIC</li>
+                  <li><strong>Entry Year:</strong> Year (2025, 2024, etc.)</li>
+                  <li><strong>Initial Quarter:</strong> Number (1, 2, 3...)</li>
+                  <li><strong>Internship Status:</strong> YES or NO</li>
                 </ul>
                 
-                <p style={{ marginBottom: '12px', fontWeight: '600', color: '#60a5fa' }}>Columnas del Docente:</p>
+                <p style={{ marginBottom: '12px', fontWeight: '600', color: '#60a5fa' }}>Teacher Columns:</p>
                 <ul style={{ margin: 0, paddingLeft: '20px', marginBottom: '16px' }}>
-                  <li><strong>Matrícula Docente:</strong> Matrícula del docente</li>
-                  <li><strong>Nombre Docente:</strong> Nombre del docente (requerido si es nuevo)</li>
-                  <li><strong>Primer Apellido Docente:</strong> Primer apellido (requerido si es nuevo)</li>
-                  <li><strong>Segundo Apellido Docente:</strong> Segundo apellido (opcional)</li>
-                  <li><strong>Correo Docente:</strong> Correo electrónico (requerido si es nuevo)</li>
+                  <li><strong>Teacher ID:</strong> Teacher ID number</li>
+                  <li><strong>Teacher Name:</strong> Teacher name (required if new)</li>
+                  <li><strong>Teacher First Surname:</strong> First surname (required if new)</li>
+                  <li><strong>Teacher Second Surname:</strong> Second surname (optional)</li>
+                  <li><strong>Teacher Email:</strong> Email address (required if new)</li>
                 </ul>
 
-                <p style={{ marginBottom: '12px', fontWeight: '600', color: '#34d399' }}>Columnas de Alumnos:</p>
+                <p style={{ marginBottom: '12px', fontWeight: '600', color: '#34d399' }}>Student Columns:</p>
                 <ul style={{ margin: 0, paddingLeft: '20px', marginBottom: '12px' }}>
-                  <li><strong>Matrícula Alumno:</strong> Matrícula del alumno</li>
-                  <li><strong>Nombre Alumno:</strong> Nombre del alumno</li>
-                  <li><strong>Primer Apellido Alumno:</strong> Primer apellido</li>
-                  <li><strong>Segundo Apellido Alumno:</strong> Segundo apellido (opcional)</li>
-                  <li><strong>Correo Alumno:</strong> Correo electrónico</li>
+                  <li><strong>Student ID:</strong> Student ID number</li>
+                  <li><strong>Student Name:</strong> Student name</li>
+                  <li><strong>Student First Surname:</strong> First surname</li>
+                  <li><strong>Student Second Surname:</strong> Second surname (optional)</li>
+                  <li><strong>Student Email:</strong> Email address</li>
                 </ul>
 
                 <div style={{ 
@@ -1799,20 +1799,20 @@ function GruposPage() {
                   borderRadius: '8px',
                   borderLeft: '4px solid #3b82f6'
                 }}>
-                  <p style={{ margin: 0, marginBottom: '8px', fontWeight: '600', color: '#60a5fa' }}>📝 Formato del Excel:</p>
+                  <p style={{ margin: 0, marginBottom: '8px', fontWeight: '600', color: '#60a5fa' }}>Excel Format:</p>
                   <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(255,255,255,0.85)' }}>
-                    <strong>UNA FILA = UN ALUMNO</strong>
+                    <strong>ONE ROW = ONE STUDENT</strong>
                   </p>
                   <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
-                    • Si un grupo tiene 3 alumnos, tendrás 3 filas<br/>
-                    • Repite los datos del grupo y docente en cada fila<br/>
-                    • Solo cambia los datos del alumno en cada fila<br/>
-                    • Ejemplo: El Grupo 1 con Docente D001 y 3 alumnos = 3 filas iguales excepto por los datos de cada alumno
+                    If a group has 3 students, you'll have 3 rows<br/>
+                    Repeat the group and teacher data in each row<br/>
+                    Only change the student data in each row<br/>
+                    Example: Group 1 with Teacher D001 and 3 students = 3 rows identical except for each student's data
                   </p>
                 </div>
 
                 <p style={{ marginTop: '16px', padding: '12px', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '6px', fontSize: '12px' }}>
-                  💡 <strong>Importante:</strong> Si un docente o alumno ya existe (misma matrícula), se usará el existente. Si no existe, se creará automáticamente con contraseña = matrícula
+                  <strong>Important:</strong> If a teacher or student already exists (same ID), the existing one will be used. If not, it will be created automatically with password = ID
                 </p>
               </div>
             </div>
@@ -1847,7 +1847,7 @@ function GruposPage() {
               }}
             >
               <i className="bi bi-download" style={{ fontSize: '18px' }}></i>
-              Descargar Plantilla de Excel
+              Download Excel Template
             </button>
 
             {/* File Upload */}
@@ -1861,7 +1861,7 @@ function GruposPage() {
             }}>
               <i className="bi bi-cloud-upload" style={{ fontSize: '48px', color: '#8b5cf6', marginBottom: '16px' }}></i>
               <p style={{ color: 'white', fontSize: '15px', marginBottom: '16px', fontWeight: '600' }}>
-                {uploadingFile ? 'Procesando archivo...' : 'Selecciona tu archivo Excel'}
+                {uploadingFile ? 'Processing file...' : 'Select your Excel file'}
               </p>
               <input
                 type="file"
@@ -1895,7 +1895,7 @@ function GruposPage() {
                   }
                 }}
               >
-                {uploadingFile ? 'Procesando...' : 'Seleccionar Archivo'}
+                {uploadingFile ? 'Processing...' : 'Select File'}
               </label>
             </div>
 
@@ -1909,34 +1909,34 @@ function GruposPage() {
               }}>
                 <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <i className={`bi ${uploadResults.data.gruposCreados > 0 ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}`}></i>
-                  Resultados de la Carga Masiva
+                  Bulk Upload Results
                 </h3>
                 
                 {/* Summary Stats */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                   <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '8px' }}>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#22c55e' }}>{uploadResults.data.gruposCreados}</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Grupos Creados</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Groups Created</div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '8px' }}>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#a78bfa' }}>{uploadResults.data.cohortesCreadas}</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Cohortes Creadas</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Cohorts Created</div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(59, 130, 246, 0.2)', borderRadius: '8px' }}>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#60a5fa' }}>{uploadResults.data.docentesCreados}</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Docentes Creados</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Teachers Created</div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(59, 130, 246, 0.15)', borderRadius: '8px' }}>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#93c5fd' }}>{uploadResults.data.docentesAsignados}</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Docentes Asignados</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Teachers Assigned</div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(16, 185, 129, 0.2)', borderRadius: '8px' }}>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#34d399' }}>{uploadResults.data.alumnosCreados}</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Alumnos Creados</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Students Created</div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '12px', background: 'rgba(16, 185, 129, 0.15)', borderRadius: '8px' }}>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#6ee7b7' }}>{uploadResults.data.alumnosAsignados}</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Alumnos Asignados</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Students Assigned</div>
                   </div>
                 </div>
 
@@ -1944,7 +1944,7 @@ function GruposPage() {
                 {uploadResults.data.errores && uploadResults.data.errores.length > 0 && (
                   <div>
                     <h4 style={{ color: '#ef4444', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>
-                      ❌ Errores encontrados ({uploadResults.data.errores.length}):
+                      Errors found ({uploadResults.data.errores.length}):
                     </h4>
                     <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                       {uploadResults.data.errores.map((error: string, idx: number) => (
@@ -1958,7 +1958,7 @@ function GruposPage() {
 
                 {uploadResults.data.gruposCreados > 0 && (
                   <p style={{ marginTop: '16px', fontSize: '13px', color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>
-                    ✅ Los usuarios nuevos se crearon con contraseña = matrícula
+                    New users were created with password = ID
                   </p>
                 )}
               </div>
@@ -1985,13 +1985,13 @@ function GruposPage() {
             }} style={{ position:'absolute', top:'16px', right:'16px', background:'transparent', border:'none', color:'white', fontSize:'24px', cursor:'pointer', padding:'4px 8px' }}>×</button>
 
             <div style={{ textAlign:'center', marginBottom:'24px' }}>
-              <div style={{ fontSize:'48px', marginBottom:'12px' }}>⚠️</div>
-              <h3 style={{ color:'white', fontSize:'20px', fontWeight:700, marginBottom:'8px' }}>Eliminar Grupo</h3>
+              <div style={{ fontSize:'48px', marginBottom:'12px' }}>WARNING</div>
+              <h3 style={{ color:'white', fontSize:'20px', fontWeight:700, marginBottom:'8px' }}>Delete Group</h3>
               <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'14px', margin:0 }}>
-                ¿Estás seguro de eliminar el <strong>Grupo {groupToDelete?.nombre}</strong>?
+                Are you sure you want to delete <strong>Group {groupToDelete?.nombre}</strong>?
               </p>
               <p style={{ color:'#ef4444', fontSize:'13px', marginTop:'12px', fontWeight:600 }}>
-                ⚠️ SOLO PARA PRUEBAS - Esto eliminará el grupo y todas sus relaciones
+                TESTING ONLY - This will delete the group and all its relationships
               </p>
             </div>
 
@@ -2000,10 +2000,10 @@ function GruposPage() {
                 setConfirmDeleteGroupExiting(true);
                 setTimeout(()=>{ setShowConfirmDeleteGroup(false); setConfirmDeleteGroupExiting(false); }, 220);
               }} style={{ flex:1, padding:'12px', backgroundColor:'#374151', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
-                Cancelar
+                Cancel
               </button>
               <button onClick={confirmDeleteGroup} style={{ flex:1, padding:'12px', backgroundColor:'#ef4444', color:'white', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
-                Eliminar
+                Delete
               </button>
             </div>
           </div>
@@ -2056,7 +2056,7 @@ function GruposPage() {
               marginBottom: '20px',
               textAlign: 'center',
             }}>
-              📋 Previsualización de Carga Masiva
+              Bulk Upload Preview
             </h3>
 
             {/* Summary Stats */}
@@ -2076,7 +2076,7 @@ function GruposPage() {
                   {previewData.totalGrupos}
                 </div>
                 <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
-                  Grupos a Crear
+                  Groups to Create
                 </div>
               </div>
               <div style={{
@@ -2089,7 +2089,7 @@ function GruposPage() {
                   {previewData.totalCohortes}
                 </div>
                 <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
-                  Cohortes Nuevas
+                  New Cohorts
                 </div>
               </div>
               <div style={{
@@ -2102,7 +2102,7 @@ function GruposPage() {
                   {previewData.totalDocentes}
                 </div>
                 <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
-                  Docentes Nuevos
+                  New Teachers
                 </div>
               </div>
               <div style={{
@@ -2115,7 +2115,7 @@ function GruposPage() {
                   {previewData.totalAlumnos}
                 </div>
                 <div style={{ fontSize: '12px', color: 'white', opacity: 0.9 }}>
-                  Alumnos Nuevos
+                  New Students
                 </div>
               </div>
             </div>
@@ -2135,7 +2135,7 @@ function GruposPage() {
                   fontWeight: 600,
                   marginBottom: '8px'
                 }}>
-                  ⚠️ Advertencias ({previewData.warnings.length}):
+                  Warnings ({previewData.warnings.length}):
                 </div>
                 <div style={{ maxHeight: '150px', overflow: 'auto' }}>
                   {previewData.warnings.map((warning: string, idx: number) => (
@@ -2165,7 +2165,7 @@ function GruposPage() {
                   borderRadius: '8px',
                   marginBottom: '8px'
                 }}>
-                  📚 Grupos ({previewData.grupos.length})
+                  Groups ({previewData.grupos.length})
                 </summary>
                 <div style={{ maxHeight: '200px', overflow: 'auto', padding: '8px' }}>
                   {previewData.grupos.map((grupo: any, idx: number) => (
@@ -2177,9 +2177,9 @@ function GruposPage() {
                       color: '#94a3b8',
                       fontSize: '13px'
                     }}>
-                      <strong style={{ color: 'white' }}>Grupo {grupo.numero}</strong> - {grupo.cohorte}
+                      <strong style={{ color: 'white' }}>Group {grupo.numero}</strong> - {grupo.cohorte}
                       <br />
-                      Docente: {grupo.docente} | Alumnos: {grupo.totalAlumnos}
+                      Teacher: {grupo.docente} | Students: {grupo.totalAlumnos}
                     </div>
                   ))}
                 </div>
@@ -2197,7 +2197,7 @@ function GruposPage() {
                     borderRadius: '8px',
                     marginBottom: '8px'
                   }}>
-                    👨‍🏫 Docentes Nuevos ({previewData.totalDocentes})
+                    New Teachers ({previewData.totalDocentes})
                   </summary>
                   <div style={{ maxHeight: '200px', overflow: 'auto', padding: '8px' }}>
                     {previewData.docentes.filter((d: any) => !d.existe).map((docente: any, idx: number) => (
@@ -2230,7 +2230,7 @@ function GruposPage() {
                     borderRadius: '8px',
                     marginBottom: '8px'
                   }}>
-                    👨‍🎓 Alumnos Nuevos ({previewData.totalAlumnos})
+                    New Students ({previewData.totalAlumnos})
                   </summary>
                   <div style={{ maxHeight: '200px', overflow: 'auto', padding: '8px' }}>
                     {previewData.alumnos.filter((a: any) => !a.existe).map((alumno: any, idx: number) => (
@@ -2244,7 +2244,7 @@ function GruposPage() {
                       }}>
                         <strong style={{ color: 'white' }}>{alumno.matricula}</strong> - {alumno.nombre} {alumno.primer_apellido}
                         <br />
-                        Grupo: {alumno.grupo} | {alumno.correo}
+                        Group: {alumno.grupo} | {alumno.correo}
                       </div>
                     ))}
                   </div>
@@ -2287,7 +2287,7 @@ function GruposPage() {
                   e.currentTarget.style.backgroundColor = '#374151';
                 }}
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 onClick={confirmBulkUpload}
@@ -2320,7 +2320,7 @@ function GruposPage() {
                   }
                 }}
               >
-                {uploadingFile ? '⏳ Creando...' : '✅ Confirmar y Crear Todo'}
+                {uploadingFile ? 'Creating...' : 'Confirm and Create All'}
               </button>
             </div>
           </div>
