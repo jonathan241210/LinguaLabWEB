@@ -287,7 +287,7 @@ export default function LoginPage() {
 
         {/* Texto */}
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-slide-in-left">
-          <h1 className="llw-login-title" style={{ fontSize: '56px', fontWeight: 'bold', color: 'var(--color-dark-blue)', margin: 0, lineHeight: 1.2 }}>LinguaLab</h1>
+          <h1 className="llw-login-title" style={{ fontSize: '56px', fontWeight: 'bold', color: 'var(--color-dark-blue)', margin: 0, lineHeight: 1.2 }}>Lingua Hawks</h1>
           <p className="llw-login-subtitle" style={{ fontSize: '20px', color: 'var(--color-gray-dark)', margin: 0, fontWeight: 500 }}>
             Plataforma de gestión educativa
           </p>
